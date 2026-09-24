@@ -6,6 +6,7 @@ engine, and the API/frontend layer.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 
@@ -142,4 +143,70 @@ class HazardOutput:
             hazard_score=float(data["hazard_score"]),
             risk_level=str(data["risk_level"]),
             evidence=list(data.get("evidence", [])),
+        )
+
+
+@dataclass
+class HourlyPrecipitationData:
+    """Internal contract for parsed precipitation observations from a weather provider.
+
+    Attributes:
+        latitude: Latitude coordinate of the observation point.
+        longitude: Longitude coordinate of the observation point.
+        timestamps: Chronological ISO-8601 timestamp strings for hourly intervals.
+        precipitation: Hourly precipitation values in millimeters (mm).
+        source: Name or identifier of data provider (e.g., 'open-meteo').
+        fetched_at: ISO-8601 timestamp indicating when data was ingested.
+    """
+    latitude: float
+    longitude: float
+    timestamps: List[str]
+    precipitation: List[float]
+    source: str = "open-meteo"
+    fetched_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+    def __post_init__(self):
+        """Validate that timestamp and precipitation series align."""
+        if len(self.timestamps) != len(self.precipitation):
+            raise ValueError(
+                f"Timestamps count ({len(self.timestamps)}) does not match "
+                f"precipitation count ({len(self.precipitation)})."
+            )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert HourlyPrecipitationData instance to a JSON-compatible dictionary."""
+        return {
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "timestamps": list(self.timestamps),
+            "precipitation": list(self.precipitation),
+            "source": self.source,
+            "fetched_at": self.fetched_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "HourlyPrecipitationData":
+        """Instantiate HourlyPrecipitationData from a dictionary.
+
+        Args:
+            data: Dictionary containing weather observation fields.
+
+        Returns:
+            HourlyPrecipitationData instance.
+
+        Raises:
+            ValueError: If required fields are missing or invalid.
+        """
+        if "latitude" not in data or "longitude" not in data:
+            raise ValueError("HourlyPrecipitationData requires 'latitude' and 'longitude'.")
+        if "timestamps" not in data or "precipitation" not in data:
+            raise ValueError("HourlyPrecipitationData requires 'timestamps' and 'precipitation'.")
+
+        return cls(
+            latitude=float(data["latitude"]),
+            longitude=float(data["longitude"]),
+            timestamps=[str(t) for t in data["timestamps"]],
+            precipitation=[float(p) for p in data["precipitation"]],
+            source=str(data.get("source", "open-meteo")),
+            fetched_at=str(data.get("fetched_at", datetime.now(timezone.utc).isoformat())),
         )

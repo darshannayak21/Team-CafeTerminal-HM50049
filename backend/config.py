@@ -11,6 +11,18 @@ class Config:
     PORT = int(os.environ.get("PORT", 5000))
     HOST = os.environ.get("HOST", "0.0.0.0")
 
+    # Open-Meteo Weather Service Configuration
+    OPEN_METEO_BASE_URL = os.environ.get(
+        "OPEN_METEO_BASE_URL", "https://api.open-meteo.com/v1/forecast"
+    )
+    WEATHER_REQUEST_TIMEOUT_SECONDS = int(
+        os.environ.get("WEATHER_REQUEST_TIMEOUT_SECONDS", 10)
+    )
+    WEATHER_DEFAULT_PAST_DAYS = int(os.environ.get("WEATHER_DEFAULT_PAST_DAYS", 3))
+    WEATHER_DEFAULT_FORECAST_DAYS = int(
+        os.environ.get("WEATHER_DEFAULT_FORECAST_DAYS", 1)
+    )
+
 
 class DevelopmentConfig(Config):
     """Development configuration."""
