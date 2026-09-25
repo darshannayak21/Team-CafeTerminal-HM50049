@@ -68,4 +68,21 @@ The foundation and contract layer are established with the following components:
   - Generates deterministic explainability evidence tags and individual component score breakdowns.
   - Zero external API, database, or LLM dependencies for mathematical evaluation.
 
-*Note: Settlement impact analysis, road accessibility intersections, response prioritization, and frontend dashboard integration are intentionally deferred to subsequent milestones.*
+- **Population Aggregation Service (`backend/services/population_service.py`):**
+  - Ingests official WorldPop gridded population GeoTIFF (`ind_ppp_2020_1km_Aggregated.tif`) and official Local Government Directory (LGD) subdistrict/taluka boundary GeoJSON (`pune_talukas.geojson`).
+  - Spatial aggregation via `rasterio.mask.mask` and `shapely`: performs polygon geometry masking, reprojection to reconcile CRS differences, nodata filtering, and valid cell count summation.
+  - Accounts for population counts (summing cell counts directly rather than surface density).
+  - Robust raster verification (`verify_raster_dataset`) checking file existence, driver, CRS, bounds, nodata, and Pune District bounding box coverage.
+  - Generates verified, pre-aggregated offline settlement datasets (`data/processed/pune_settlements.json`) containing all 14 official Pune talukas.
+
+- **Settlement Impact Service (`backend/services/settlement_service.py`):**
+  - Couples environmental hazard evaluation (`HazardOutput` or normalized score [0.0, 1.0]) with real demographic exposure:
+    $$\text{settlement\_impact} = \text{hazard\_score} \times \text{population}$$
+  - Functions for single-settlement evaluation, batch multi-settlement evaluation, and deterministic sorting (`sort_settlements_by_impact`) with secondary ID tie-breaking.
+  - Zero LLM, non-deterministic, or arbitrary heuristics; strictly preserves original hazard scores without mutation.
+
+- **Settlement Data Contracts (`backend/models/schemas.py`):**
+  - `Settlement`: Represents an administrative or populated area with `settlement_id`, `name`, `latitude`, `longitude`, `population`, optional `taluka`, and optional boundary `geometry`. Strict validation rejects empty IDs, out-of-bounds coordinates, negative counts, or missing populations (no silent zero conversion).
+  - `SettlementImpact`: Output contract encapsulating `settlement_id`, `settlement_name`, `population`, `hazard_score`, and computed `settlement_impact`.
+
+*Note: Road accessibility intersections, OSRM routing, response prioritization, and frontend dashboard integration are intentionally deferred to subsequent milestones.*
