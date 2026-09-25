@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --color-deep-navy: #18324A;
+  --color-muted-blue: #557A95;
+  --color-soft-blue: #8FAFC2;
+  --color-warm-cream: #F3EEE5;
+  --color-paper: #FAF8F3;
+  --color-dark-brown: #654536;
+  --color-warm-brown: #8A624E;
+  --color-terracotta: #B66F55;
+  --color-charcoal: #273038;
+  --color-muted-text: #68747B;
+  --color-border-card: #D9D0C4;
+
+  --font-serif: Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-sans: "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "SF Mono", "Roboto Mono", Consolas, monospace;
+}
+
+:root {
+  --bg-app: #FAF8F3;
+  --text-main: #273038;
+  --border-subtle: #D9D0C4;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-feature-settings: "tnum" 1, "kern" 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle cartographic grid background pattern for the map stage placeholder */
+.bg-carto-grid {
+  background-size: 24px 24px;
+  background-image: 
+    linear-gradient(to right, rgba(217, 208, 196, 0.45) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(217, 208, 196, 0.45) 1px, transparent 1px);
+}
+
+/* Focus outline for keyboard navigation accessibility */
+*:focus-visible {
+  outline: 2px solid #557A95;
+  outline-offset: 1px;
+}
