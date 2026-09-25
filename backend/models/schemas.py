@@ -62,6 +62,44 @@ class HazardInput:
     terrain_susceptibility: float
     historical_flood_proximity: float
 
+    def validate(self) -> None:
+        """Validate input field ranges and coordinate constraints.
+
+        Raises:
+            ValueError: If any attribute is None, non-numeric, or outside valid physical/normalized boundaries.
+        """
+        if self.location is None or not isinstance(self.location, Location):
+            raise ValueError("HazardInput requires a valid 'location' of type Location.")
+        if not (-90.0 <= self.location.lat <= 90.0):
+            raise ValueError(
+                f"Invalid latitude: {self.location.lat}. Latitude must be between -90.0 and 90.0."
+            )
+        if not (-180.0 <= self.location.lon <= 180.0):
+            raise ValueError(
+                f"Invalid longitude: {self.location.lon}. Longitude must be between -180.0 and 180.0."
+            )
+
+        for name, val in [
+            ("rainfall_1h", self.rainfall_1h),
+            ("rainfall_24h", self.rainfall_24h),
+            ("rainfall_72h", self.rainfall_72h),
+        ]:
+            if val is None or not isinstance(val, (int, float)):
+                raise ValueError(f"HazardInput field '{name}' must be a non-null number.")
+            if val < 0.0:
+                raise ValueError(f"HazardInput field '{name}' cannot be negative: {val}")
+
+        for name, val in [
+            ("terrain_susceptibility", self.terrain_susceptibility),
+            ("historical_flood_proximity", self.historical_flood_proximity),
+        ]:
+            if val is None or not isinstance(val, (int, float)):
+                raise ValueError(f"HazardInput field '{name}' must be a non-null number.")
+            if not (0.0 <= val <= 1.0):
+                raise ValueError(
+                    f"HazardInput field '{name}' must be normalized within [0.0, 1.0], got {val}"
+                )
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert HazardInput instance to a JSON-compatible dictionary."""
         return {
@@ -86,11 +124,25 @@ class HazardInput:
         Raises:
             ValueError: If required fields are missing or invalid.
         """
+        if not isinstance(data, dict):
+            raise ValueError("HazardInput.from_dict requires a dictionary.")
+
         loc_data = data.get("location")
         if not isinstance(loc_data, dict):
             raise ValueError("HazardInput requires a 'location' dictionary.")
 
-        return cls(
+        required_fields = [
+            "rainfall_1h",
+            "rainfall_24h",
+            "rainfall_72h",
+            "terrain_susceptibility",
+            "historical_flood_proximity",
+        ]
+        for field_name in required_fields:
+            if field_name not in data or data[field_name] is None:
+                raise ValueError(f"HazardInput requires non-null field '{field_name}'.")
+
+        instance = cls(
             location=Location.from_dict(loc_data),
             rainfall_1h=float(data["rainfall_1h"]),
             rainfall_24h=float(data["rainfall_24h"]),
@@ -98,37 +150,45 @@ class HazardInput:
             terrain_susceptibility=float(data["terrain_susceptibility"]),
             historical_flood_proximity=float(data["historical_flood_proximity"]),
         )
+        instance.validate()
+        return instance
 
 
 @dataclass
 class HazardOutput:
     """Output contract for the hazard evaluation engine.
 
-    Represents computed hazard score, risk classification, and contributing evidence factors.
+    Represents computed hazard score, risk classification, contributing evidence factors,
+    and individual normalized component scores.
 
     Attributes:
         hazard_score: Normalized composite hazard score in range [0.0, 1.0].
         risk_level: Qualitative risk category (e.g., 'LOW', 'MODERATE', 'HIGH', 'CRITICAL').
         evidence: List of contributing factors or threshold triggers explaining the score.
+        component_scores: Breakdown of individual normalized component factors contributing to the score.
     """
     hazard_score: float
     risk_level: str
     evidence: List[str] = field(default_factory=list)
+    component_scores: Dict[str, float] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert HazardOutput instance to a JSON-compatible dictionary."""
-        return {
+        output: Dict[str, Any] = {
             "hazard_score": self.hazard_score,
             "risk_level": self.risk_level,
             "evidence": list(self.evidence),
         }
+        if self.component_scores:
+            output["component_scores"] = dict(self.component_scores)
+        return output
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "HazardOutput":
         """Instantiate HazardOutput from a dictionary.
 
         Args:
-            data: Dictionary containing 'hazard_score', 'risk_level', and optional 'evidence'.
+            data: Dictionary containing 'hazard_score', 'risk_level', and optional 'evidence'/'component_scores'.
 
         Returns:
             HazardOutput instance.
@@ -136,13 +196,70 @@ class HazardOutput:
         Raises:
             ValueError: If required fields are missing or invalid.
         """
-        if "hazard_score" not in data or "risk_level" not in data:
-            raise ValueError("HazardOutput requires 'hazard_score' and 'risk_level'.")
+        if not isinstance(data, dict):
+            raise ValueError("HazardOutput.from_dict requires a dictionary.")
+        if "hazard_score" not in data or data["hazard_score"] is None:
+            raise ValueError("HazardOutput requires non-null 'hazard_score'.")
+        if "risk_level" not in data or data["risk_level"] is None:
+            raise ValueError("HazardOutput requires non-null 'risk_level'.")
+
+        comp_scores: Dict[str, float] = {}
+        if "component_scores" in data and isinstance(data["component_scores"], dict):
+            comp_scores = {str(k): float(v) for k, v in data["component_scores"].items()}
 
         return cls(
             hazard_score=float(data["hazard_score"]),
             risk_level=str(data["risk_level"]),
             evidence=list(data.get("evidence", [])),
+            component_scores=comp_scores,
+        )
+
+
+@dataclass
+class RainfallMetrics:
+    """Precipitation metrics aggregated over short and multi-day observation windows.
+
+    Attributes:
+        rainfall_1h: Precipitation depth over the 1-hour interval in mm.
+        rainfall_24h: Cumulative precipitation depth over 24 hours in mm.
+        rainfall_72h: Cumulative precipitation depth over 72 hours in mm.
+    """
+    rainfall_1h: float
+    rainfall_24h: float
+    rainfall_72h: float
+
+    def to_dict(self) -> Dict[str, float]:
+        """Convert RainfallMetrics instance to a JSON-compatible dictionary."""
+        return {
+            "rainfall_1h": self.rainfall_1h,
+            "rainfall_24h": self.rainfall_24h,
+            "rainfall_72h": self.rainfall_72h,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "RainfallMetrics":
+        """Instantiate RainfallMetrics from a dictionary.
+
+        Args:
+            data: Dictionary containing 'rainfall_1h', 'rainfall_24h', and 'rainfall_72h'.
+
+        Returns:
+            RainfallMetrics instance.
+
+        Raises:
+            ValueError: If required fields are missing or invalid.
+        """
+        if not isinstance(data, dict):
+            raise ValueError("RainfallMetrics.from_dict requires a dictionary.")
+
+        for field_name in ("rainfall_1h", "rainfall_24h", "rainfall_72h"):
+            if field_name not in data or data[field_name] is None:
+                raise ValueError(f"RainfallMetrics requires non-null field '{field_name}'.")
+
+        return cls(
+            rainfall_1h=float(data["rainfall_1h"]),
+            rainfall_24h=float(data["rainfall_24h"]),
+            rainfall_72h=float(data["rainfall_72h"]),
         )
 
 
