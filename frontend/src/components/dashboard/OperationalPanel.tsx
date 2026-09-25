@@ -8,6 +8,7 @@ import { EvidenceList } from '@/components/dashboard/EvidenceList';
 import { Button } from '@/components/ui/Button';
 import {
   PROTOTYPE_HAZARD_ASSESSMENT,
+  PROTOTYPE_RISK_AREAS,
   PROTOTYPE_SETTLEMENT_SAMPLES,
   PROTOTYPE_PRIORITY_SAMPLES,
   PROTOTYPE_NOTICE
@@ -15,10 +16,49 @@ import {
 
 interface OperationalPanelProps {
   activeTaluka: string;
+  selectedRiskAreaId: string | null;
+  onSelectRiskArea: (id: string | null) => void;
 }
 
-export const OperationalPanel: React.FC<OperationalPanelProps> = ({ activeTaluka }) => {
+export const OperationalPanel: React.FC<OperationalPanelProps> = ({
+  activeTaluka,
+  selectedRiskAreaId,
+  onSelectRiskArea
+}) => {
   const [activeTab, setActiveTab] = useState<'hazard' | 'settlements' | 'priority'>('hazard');
+
+  const selectedArea = selectedRiskAreaId
+    ? PROTOTYPE_RISK_AREAS.find((a) => a.id === selectedRiskAreaId)
+    : null;
+
+  // Derive active assessment data: selected area or district baseline
+  const activeAssessment = selectedArea
+    ? {
+        title: selectedArea.name,
+        subtitle: `Sector: ${selectedArea.taluka} Taluka · Extent: ${selectedArea.areaKm2} km²`,
+        riskLevel: selectedArea.riskLevel,
+        hazardScore: selectedArea.hazardScore,
+        componentScores: selectedArea.componentScores,
+        evidence: selectedArea.evidence,
+        summary: selectedArea.summary,
+        datum: 'Selected Sector'
+      }
+    : {
+        title: 'District Composite Assessment',
+        subtitle: `Evaluated sector: ${activeTaluka} (Baseline overview)`,
+        riskLevel: PROTOTYPE_HAZARD_ASSESSMENT.riskLevel,
+        hazardScore: PROTOTYPE_HAZARD_ASSESSMENT.hazardScore,
+        componentScores: PROTOTYPE_HAZARD_ASSESSMENT.componentScores,
+        evidence: PROTOTYPE_HAZARD_ASSESSMENT.evidence,
+        summary: 'Baseline composite telemetry reflecting district-level meteorological and terrain indices.',
+        datum: 'District Baseline'
+      };
+
+  // Filter risk sectors list based on active taluka
+  const visibleSectors = PROTOTYPE_RISK_AREAS.filter((area) => {
+    if (activeTaluka === 'All Talukas') return true;
+    return area.taluka.toLowerCase() === activeTaluka.toLowerCase();
+  });
 
   return (
     <div className="flex flex-col h-full divide-y divide-[#D9D0C4] bg-[#FAF8F3] text-[#273038]">
@@ -81,28 +121,51 @@ export const OperationalPanel: React.FC<OperationalPanelProps> = ({ activeTaluka
       <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5">
         {activeTab === 'hazard' && (
           <>
+            {/* Active Selection Banner */}
+            {selectedArea ? (
+              <div className="border border-[#18324A] bg-[#F3EEE5] p-2.5 flex items-center justify-between text-xs font-sans">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#B66F55] animate-pulse" />
+                  <span className="text-[#18324A]">
+                    Focused on: <strong>{selectedArea.name}</strong>
+                  </span>
+                </div>
+                <button
+                  onClick={() => onSelectRiskArea(null)}
+                  className="text-[11px] font-mono text-[#654536] hover:underline cursor-pointer"
+                >
+                  Reset Overview ×
+                </button>
+              </div>
+            ) : (
+              <div className="border border-[#D9D0C4] bg-[#FAF8F3] p-2 text-xs font-sans text-[#68747B] flex items-center justify-between">
+                <span>Displaying District Overview</span>
+                <span className="text-[11px] font-mono text-[#8A624E]">Click a map polygon to inspect</span>
+              </div>
+            )}
+
             {/* Composite Hazard Card */}
             <Card variant="paper" borderAccent>
               <CardHeader
-                title="Current Hazard Assessment"
-                subtitle={`Evaluated sector: ${activeTaluka}`}
+                title={activeAssessment.title}
+                subtitle={activeAssessment.subtitle}
                 badge={
-                  <Badge variant={PROTOTYPE_HAZARD_ASSESSMENT.riskLevel}>
-                    {PROTOTYPE_HAZARD_ASSESSMENT.riskLevel}
+                  <Badge variant={activeAssessment.riskLevel}>
+                    {activeAssessment.riskLevel}
                   </Badge>
                 }
               />
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-2 gap-3 pb-3 border-b border-[#D9D0C4]">
                   <DataField
-                    label="Composite Score"
-                    value={PROTOTYPE_HAZARD_ASSESSMENT.hazardScore.toFixed(2)}
+                    label="Composite Hazard Index"
+                    value={activeAssessment.hazardScore.toFixed(2)}
                     unit="/ 1.00"
                     detail="Weighted multi-factor score"
                   />
                   <DataField
                     label="Evaluation Datum"
-                    value="07:15 UTC"
+                    value={activeAssessment.datum}
                     unit="Observed"
                     detail="Sample window: 72h"
                   />
@@ -117,63 +180,91 @@ export const OperationalPanel: React.FC<OperationalPanelProps> = ({ activeTaluka
                     <div className="flex justify-between items-center py-0.5 border-b border-[#D9D0C4]/40">
                       <span className="text-[#273038] font-sans">Rainfall (1h intensity):</span>
                       <span className="font-semibold text-[#18324A]">
-                        {PROTOTYPE_HAZARD_ASSESSMENT.componentScores.rainfall_1h.toFixed(2)}
+                        {activeAssessment.componentScores.rainfall_1h.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-0.5 border-b border-[#D9D0C4]/40">
                       <span className="text-[#273038] font-sans">Rainfall (24h accumulation):</span>
                       <span className="font-semibold text-[#18324A]">
-                        {PROTOTYPE_HAZARD_ASSESSMENT.componentScores.rainfall_24h.toFixed(2)}
+                        {activeAssessment.componentScores.rainfall_24h.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-0.5 border-b border-[#D9D0C4]/40">
                       <span className="text-[#273038] font-sans">Rainfall (72h saturation):</span>
                       <span className="font-semibold text-[#18324A]">
-                        {PROTOTYPE_HAZARD_ASSESSMENT.componentScores.rainfall_72h.toFixed(2)}
+                        {activeAssessment.componentScores.rainfall_72h.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-0.5 border-b border-[#D9D0C4]/40">
                       <span className="text-[#273038] font-sans">Terrain Susceptibility (Slope):</span>
                       <span className="font-semibold text-[#18324A]">
-                        {PROTOTYPE_HAZARD_ASSESSMENT.componentScores.terrain_susceptibility.toFixed(2)}
+                        {activeAssessment.componentScores.terrain_susceptibility.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center py-0.5">
                       <span className="text-[#273038] font-sans">Historical Flood Channel Proximity:</span>
                       <span className="font-semibold text-[#18324A]">
-                        {PROTOTYPE_HAZARD_ASSESSMENT.componentScores.historical_flood_proximity.toFixed(2)}
+                        {activeAssessment.componentScores.historical_flood_proximity.toFixed(2)}
                       </span>
                     </div>
                   </div>
                 </div>
+
+                {/* Tactical Summary */}
+                {activeAssessment.summary && (
+                  <p className="text-xs font-sans text-[#654536] border-t border-[#D9D0C4]/60 pt-2 italic leading-relaxed">
+                    {activeAssessment.summary}
+                  </p>
+                )}
               </CardContent>
             </Card>
 
             {/* Explainability Evidence Card */}
             <Card variant="paper">
               <CardHeader
-                title="Explainability & Evidence"
-                subtitle="Deterministic threshold triggers"
+                title="Explainability & Localized Evidence"
+                subtitle="Deterministic threshold triggers for active sector"
               />
               <CardContent>
-                <EvidenceList evidence={PROTOTYPE_HAZARD_ASSESSMENT.evidence} />
+                <EvidenceList evidence={activeAssessment.evidence} />
               </CardContent>
             </Card>
 
-            {/* Road Vulnerability Placeholder Preview */}
+            {/* Mapped Risk Sectors Quick Selector */}
             <Card variant="cream">
               <CardHeader
-                title="Road Vulnerability (M4 Preview)"
-                badge={<Badge variant="MUTED">Deferred</Badge>}
+                title="Mapped Risk Sectors"
+                subtitle={`Showing ${visibleSectors.length} prototype sector(s)`}
               />
-              <CardContent>
-                <p className="text-xs font-sans leading-relaxed text-[#654536] mb-2">
-                  Road network hazard intersection (OSM road segments classified by flood exposure and culvert vulnerability)
-                  is scheduled for Milestone 4.
-                </p>
-                <div className="text-[11px] font-sans text-[#68747B] border-t border-[#D9D0C4] pt-2 flex justify-between">
-                  <span>Network Dataset: OSM Maharashtra</span>
-                  <span className="font-mono">Engine: Planned</span>
+              <CardContent noPadding>
+                <div className="divide-y divide-[#D9D0C4] font-sans text-xs">
+                  {visibleSectors.map((sector) => {
+                    const isSelected = selectedRiskAreaId === sector.id;
+                    return (
+                      <button
+                        key={sector.id}
+                        onClick={() => onSelectRiskArea(isSelected ? null : sector.id)}
+                        className={`w-full p-2.5 text-left flex items-center justify-between gap-2 transition-none cursor-pointer ${
+                          isSelected ? 'bg-[#FAF8F3] font-semibold' : 'hover:bg-[#FAF8F3]/60'
+                        }`}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-[#18324A]">{sector.name}</span>
+                          <span className="text-[11px] text-[#68747B] font-mono">
+                            {sector.taluka} Taluka · {sector.areaKm2} km²
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono font-bold text-[#18324A]">
+                            {sector.hazardScore.toFixed(2)}
+                          </span>
+                          <Badge variant={sector.riskLevel} size="sm">
+                            {sector.riskLevel}
+                          </Badge>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -267,9 +358,15 @@ export const OperationalPanel: React.FC<OperationalPanelProps> = ({ activeTaluka
           Scope: <strong className="font-mono text-[#18324A]">{activeTaluka}</strong>
         </span>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            Refresh Fixture
-          </Button>
+          {selectedRiskAreaId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onSelectRiskArea(null)}
+            >
+              Deselect Sector
+            </Button>
+          )}
           <Button variant="primary" size="sm">
             Operational Log
           </Button>
