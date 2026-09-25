@@ -4,7 +4,13 @@ import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { RiskArea, RiskLevel } from '@/types/hazard';
-import { PROTOTYPE_RISK_AREAS, PUNE_DISTRICT_CONTEXT } from '@/data/fixtureData';
+import { RoadStatus } from '@/types/road';
+import {
+  PROTOTYPE_RISK_AREAS,
+  PROTOTYPE_SETTLEMENTS,
+  PROTOTYPE_ROADS,
+  PUNE_DISTRICT_CONTEXT,
+} from '@/data/fixtureData';
 import { MapLegend } from '@/components/map/MapLegend';
 
 interface RiskMapProps {
@@ -13,44 +19,37 @@ interface RiskMapProps {
   onSelectRiskArea: (id: string | null) => void;
 }
 
-// Styling palette mapping strictly following our cartographic design tokens
+// ── Polygon palette ───────────────────────────────────────────────────────────
 const RISK_STYLES: Record<
   RiskLevel,
   { stroke: string; fill: string; fillOpacity: number }
 > = {
-  CRITICAL: {
-    stroke: '#B66F55', // Terracotta
-    fill: '#B66F55',
-    fillOpacity: 0.35
-  },
-  HIGH: {
-    stroke: '#8A624E', // Warm Brown
-    fill: '#8A624E',
-    fillOpacity: 0.30
-  },
-  MODERATE: {
-    stroke: '#557A95', // Muted Blue
-    fill: '#557A95',
-    fillOpacity: 0.25
-  },
-  LOW: {
-    stroke: '#18324A', // Deep Navy
-    fill: '#8FAFC2', // Soft Blue
-    fillOpacity: 0.20
-  }
+  CRITICAL: { stroke: '#B66F55', fill: '#B66F55', fillOpacity: 0.35 },
+  HIGH:     { stroke: '#8A624E', fill: '#8A624E', fillOpacity: 0.30 },
+  MODERATE: { stroke: '#557A95', fill: '#557A95', fillOpacity: 0.25 },
+  LOW:      { stroke: '#18324A', fill: '#8FAFC2', fillOpacity: 0.20 },
+};
+
+// ── Road colour by status ─────────────────────────────────────────────────────
+const ROAD_COLOURS: Record<RoadStatus, string> = {
+  'CONFIRMED BLOCKED': '#B66F55',
+  'AT RISK':           '#8A624E',
+  'MONITORING':        '#557A95',
 };
 
 export const RiskMap: React.FC<RiskMapProps> = ({
   activeTaluka,
   selectedRiskAreaId,
-  onSelectRiskArea
+  onSelectRiskArea,
 }) => {
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<L.Map | null>(null);
-  const polygonLayerGroupRef = useRef<L.LayerGroup | null>(null);
-  const markerLayerGroupRef = useRef<L.LayerGroup | null>(null);
+  const mapContainerRef    = useRef<HTMLDivElement>(null);
+  const mapInstanceRef     = useRef<L.Map | null>(null);
+  const polygonGroupRef    = useRef<L.LayerGroup | null>(null);
+  const reticleGroupRef    = useRef<L.LayerGroup | null>(null);
+  const settlementGroupRef = useRef<L.LayerGroup | null>(null);
+  const roadGroupRef       = useRef<L.LayerGroup | null>(null);
 
-  // Initialize Leaflet map instance
+  // ── Initialise map (once) ─────────────────────────────────────────────────
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
@@ -62,44 +61,38 @@ export const RiskMap: React.FC<RiskMapProps> = ({
       minZoom: 8,
       maxZoom: 16,
       zoomControl: false,
-      attributionControl: true
+      attributionControl: true,
     });
 
-    // Custom attribution positioning and cartographic tile layer
-    // CartoDB Voyager provides warm paper/cream tint matching the editorial visual palette
     L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
       {
         subdomains: 'abcd',
         maxZoom: 19,
         attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>'
+          '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' +
+          ' &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
       }
     ).addTo(map);
 
-    // Zoom control at top-right for clean responder dashboard hierarchy
     L.control.zoom({ position: 'topright' }).addTo(map);
+    L.control.scale({ position: 'bottomleft', metric: true, imperial: false }).addTo(map);
 
-    // Scale control at bottom-left
-    L.control
-      .scale({
-        position: 'bottomleft',
-        metric: true,
-        imperial: false
-      })
-      .addTo(map);
+    const sw = L.latLng(bounds.south - 0.5, bounds.west - 0.5);
+    const ne = L.latLng(bounds.north + 0.5, bounds.east + 0.5);
+    map.setMaxBounds(L.latLngBounds(sw, ne));
 
-    // Bounding max bounds to prevent disorienting panning far away from Pune region
-    const southWest = L.latLng(bounds.south - 0.5, bounds.west - 0.5);
-    const northEast = L.latLng(bounds.north + 0.5, bounds.east + 0.5);
-    map.setMaxBounds(L.latLngBounds(southWest, northEast));
+    // Layer groups — order matters for z-index: roads first (bottom), then polygons, then markers on top
+    const roadGroup       = L.layerGroup().addTo(map);
+    const polygonGroup    = L.layerGroup().addTo(map);
+    const settlementGroup = L.layerGroup().addTo(map);
+    const reticleGroup    = L.layerGroup().addTo(map);
 
-    const polygonGroup = L.layerGroup().addTo(map);
-    const markerGroup = L.layerGroup().addTo(map);
-
-    polygonLayerGroupRef.current = polygonGroup;
-    markerLayerGroupRef.current = markerGroup;
-    mapInstanceRef.current = map;
+    roadGroupRef.current       = roadGroup;
+    polygonGroupRef.current    = polygonGroup;
+    settlementGroupRef.current = settlementGroup;
+    reticleGroupRef.current    = reticleGroup;
+    mapInstanceRef.current     = map;
 
     return () => {
       map.remove();
@@ -107,155 +100,188 @@ export const RiskMap: React.FC<RiskMapProps> = ({
     };
   }, []);
 
-  // Update polygons and markers whenever selected area or active taluka changes
+  // ── Redraw layers whenever selection / taluka changes ─────────────────────
   useEffect(() => {
-    const map = mapInstanceRef.current;
-    const polygonGroup = polygonLayerGroupRef.current;
-    const markerGroup = markerLayerGroupRef.current;
+    const map             = mapInstanceRef.current;
+    const polygonGroup    = polygonGroupRef.current;
+    const reticleGroup    = reticleGroupRef.current;
+    const settlementGroup = settlementGroupRef.current;
+    const roadGroup       = roadGroupRef.current;
 
-    if (!map || !polygonGroup || !markerGroup) return;
+    if (!map || !polygonGroup || !reticleGroup || !settlementGroup || !roadGroup) return;
 
     polygonGroup.clearLayers();
-    markerGroup.clearLayers();
+    reticleGroup.clearLayers();
+    settlementGroup.clearLayers();
+    roadGroup.clearLayers();
 
-    // Filter or highlight based on active taluka
+    // ── Visible risk areas ──────────────────────────────────────────────────
     const visibleAreas = PROTOTYPE_RISK_AREAS.filter((area) => {
       if (activeTaluka === 'All Talukas') return true;
       return area.taluka.toLowerCase() === activeTaluka.toLowerCase();
     });
-
-    // If an active taluka has no specific polygon, fallback to showing all but muted
     const areasToRender = visibleAreas.length > 0 ? visibleAreas : PROTOTYPE_RISK_AREAS;
 
+    // ── Risk-area polygons ──────────────────────────────────────────────────
     areasToRender.forEach((area: RiskArea) => {
       const isSelected = selectedRiskAreaId === area.id;
-      const baseStyle = RISK_STYLES[area.riskLevel] || RISK_STYLES.LOW;
+      const style      = RISK_STYLES[area.riskLevel] ?? RISK_STYLES.LOW;
 
-      // Polygon styling with distinct selected emphasis
-      const polygonOptions: L.PolylineOptions = isSelected
-        ? {
-            color: '#18324A', // Deep Navy accent border
-            weight: 3.5,
-            fillColor: baseStyle.fill,
-            fillOpacity: 0.65,
-            dashArray: '6, 6'
-          }
-        : {
-            color: baseStyle.stroke,
-            weight: 2,
-            fillColor: baseStyle.fill,
-            fillOpacity: baseStyle.fillOpacity
-          };
+      const opts: L.PolylineOptions = isSelected
+        ? { color: '#18324A', weight: 3.5, fillColor: style.fill, fillOpacity: 0.60, dashArray: '6 6' }
+        : { color: style.stroke, weight: 2, fillColor: style.fill, fillOpacity: style.fillOpacity };
 
-      const polygon = L.polygon(area.polygon, polygonOptions);
+      const poly = L.polygon(area.polygon, opts);
 
-      // Tooltip styling with clear field-report metadata
-      polygon.bindTooltip(
-        `
-        <div style="font-family: inherit; font-size: 11px; line-height: 1.4; color: #273038;">
-          <div style="font-weight: 700; color: #18324A; font-size: 12px; margin-bottom: 2px;">
-            ${area.name}
-          </div>
-          <div>Sector: <strong>${area.taluka} Taluka</strong></div>
-          <div>Risk Tier: <span style="font-weight: 700; color: ${baseStyle.stroke};">${area.riskLevel}</span> (Score: ${area.hazardScore.toFixed(2)})</div>
-          <div style="font-size: 10px; color: #68747B; margin-top: 3px;">Click to inspect localized telemetry</div>
-        </div>
-        `,
-        {
-          sticky: true,
-          direction: 'top',
-          className: 'carto-tooltip'
-        }
+      poly.bindTooltip(
+        `<div style="font-family:inherit;font-size:11px;line-height:1.4;color:#273038">
+           <div style="font-weight:700;color:#18324A;font-size:12px;margin-bottom:2px">${area.name}</div>
+           <div>Sector: <strong>${area.taluka} Taluka</strong></div>
+           <div>Risk: <span style="font-weight:700;color:${style.stroke}">${area.riskLevel}</span> (${area.hazardScore.toFixed(2)})</div>
+           <div style="font-size:10px;color:#68747B;margin-top:3px">Click to inspect impact chain</div>
+         </div>`,
+        { sticky: true, direction: 'top', className: 'carto-tooltip' }
       );
 
-      // Mouse events
-      polygon.on('click', (e) => {
+      poly.on('click', (e) => {
         L.DomEvent.stopPropagation(e);
-        if (selectedRiskAreaId === area.id) {
-          onSelectRiskArea(null); // Deselect on second click
-        } else {
-          onSelectRiskArea(area.id);
-        }
+        onSelectRiskArea(selectedRiskAreaId === area.id ? null : area.id);
       });
 
-      polygon.on('mouseover', function () {
-        if (!isSelected) {
-          polygon.setStyle({
-            weight: 3,
-            fillOpacity: baseStyle.fillOpacity + 0.15
-          });
-        }
+      poly.on('mouseover', () => {
+        if (!isSelected) poly.setStyle({ weight: 3, fillOpacity: style.fillOpacity + 0.15 });
+      });
+      poly.on('mouseout', () => {
+        if (!isSelected) poly.setStyle(opts);
       });
 
-      polygon.on('mouseout', function () {
-        if (!isSelected) {
-          polygon.setStyle(polygonOptions);
-        }
-      });
+      polygonGroup.addLayer(poly);
 
-      polygonGroup.addLayer(polygon);
-
-      // If selected, add an editorial centroid reticle marker
+      // Centroid reticle when selected
       if (isSelected) {
-        const reticleIcon = L.divIcon({
+        const icon = L.divIcon({
           className: 'carto-reticle-icon',
-          html: `
-            <div style="
-              width: 14px; 
-              height: 14px; 
-              border: 2px solid #18324A; 
-              border-radius: 50%; 
-              background-color: #FAF8F3; 
-              box-shadow: 0 0 0 2px #F3EEE5;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-            ">
-              <div style="width: 4px; height: 4px; background-color: #B66F55; border-radius: 50%;"></div>
-            </div>
-          `,
+          html: `<div style="width:14px;height:14px;border:2px solid #18324A;border-radius:50%;background:#FAF8F3;display:flex;align-items:center;justify-content:center">
+                   <div style="width:4px;height:4px;background:#B66F55;border-radius:50%"></div>
+                 </div>`,
           iconSize: [14, 14],
-          iconAnchor: [7, 7]
+          iconAnchor: [7, 7],
         });
-
-        const reticle = L.marker(area.centroid, { icon: reticleIcon });
-        markerGroup.addLayer(reticle);
+        reticleGroup.addLayer(L.marker(area.centroid, { icon }));
       }
     });
 
-    // Pan smoothly if selected area changes
+    // ── Settlement markers (visible only when a risk area is selected) ───────
     if (selectedRiskAreaId) {
-      const selected = PROTOTYPE_RISK_AREAS.find((a) => a.id === selectedRiskAreaId);
-      if (selected) {
-        map.panTo(selected.centroid, { animate: true, duration: 0.8 });
-      }
+      const areaSettlements = PROTOTYPE_SETTLEMENTS.filter(
+        (s) => s.riskAreaId === selectedRiskAreaId
+      );
+
+      areaSettlements.forEach((s) => {
+        const sIcon = L.divIcon({
+          className: 'carto-settlement-icon',
+          html: `<div style="
+                   width:12px;height:12px;
+                   border:2px solid #18324A;border-radius:50%;
+                   background:#FAF8F3;
+                   box-shadow:0 0 0 2px #F3EEE5;
+                 "></div>`,
+          iconSize: [12, 12],
+          iconAnchor: [6, 6],
+        });
+
+        const marker = L.marker([s.latitude, s.longitude], { icon: sIcon });
+
+        marker.bindTooltip(
+          `<div style="font-family:inherit;font-size:11px;line-height:1.4;color:#273038">
+             <div style="font-weight:700;color:#18324A;font-size:12px;margin-bottom:2px">${s.name}</div>
+             <div>Taluka: <strong>${s.taluka}</strong></div>
+             <div>Population: <strong>${s.population.toLocaleString()}</strong></div>
+             <div>Households affected: <strong>${s.affectedHouseholds.toLocaleString()}</strong></div>
+             <div style="font-size:10px;color:#68747B;margin-top:3px">${s.impactLevel} impact · Prototype fixture</div>
+           </div>`,
+          { direction: 'top', className: 'carto-tooltip' }
+        );
+
+        settlementGroup.addLayer(marker);
+      });
+    }
+
+    // ── Road risk polylines (visible only when a risk area is selected) ──────
+    if (selectedRiskAreaId) {
+      const areaRoads = PROTOTYPE_ROADS.filter(
+        (r) => r.riskAreaId === selectedRiskAreaId
+      );
+
+      areaRoads.forEach((road) => {
+        const colour = ROAD_COLOURS[road.status] ?? '#557A95';
+        const isDashed = road.status === 'AT RISK' || road.status === 'MONITORING';
+
+        const roadOpts: L.PolylineOptions = {
+          color: colour,
+          weight: 3,
+          opacity: 0.85,
+          dashArray: isDashed ? '8 5' : undefined,
+        };
+
+        const line = L.polyline(road.coordinates, roadOpts);
+
+        line.bindTooltip(
+          `<div style="font-family:inherit;font-size:11px;line-height:1.4;color:#273038">
+             <div style="font-weight:700;color:#18324A;font-size:12px;margin-bottom:2px">${road.name}</div>
+             <div>Status: <strong style="color:${colour}">${road.status}</strong></div>
+             <div style="margin-top:2px;max-width:200px">${road.riskReason}</div>
+             <div style="font-size:10px;color:#68747B;margin-top:3px">Prototype fixture — not a live report</div>
+           </div>`,
+          { sticky: true, direction: 'top', className: 'carto-tooltip' }
+        );
+
+        roadGroup.addLayer(line);
+      });
+    }
+
+    // ── Pan to selected area ─────────────────────────────────────────────────
+    if (selectedRiskAreaId) {
+      const sel = PROTOTYPE_RISK_AREAS.find((a) => a.id === selectedRiskAreaId);
+      if (sel) map.panTo(sel.centroid, { animate: true, duration: 0.8 });
     }
   }, [activeTaluka, selectedRiskAreaId, onSelectRiskArea]);
 
+  // ── JSX ───────────────────────────────────────────────────────────────────
   return (
     <div className="relative w-full h-full flex-1 flex flex-col bg-[#FAF8F3] select-none">
-      {/* Top Map Context Strip */}
+      {/* Top map context strip */}
       <div className="z-[400] px-4 py-2 flex flex-wrap items-center justify-between gap-2 border-b border-[#D9D0C4] bg-[#F3EEE5]/95">
         <div className="flex flex-wrap items-center gap-2 text-xs font-sans">
-          <span className="text-xs uppercase tracking-wider text-[#68747B] font-bold">
-            Layers:
-          </span>
+          <span className="text-xs uppercase tracking-wider text-[#68747B] font-bold">Layers:</span>
           <div className="flex items-center gap-1.5 border border-[#D9D0C4] bg-[#FAF8F3] px-2.5 py-1 text-xs text-[#18324A] font-medium">
             <span className="w-2 h-2 bg-[#557A95] inline-block" />
             Base: Cartographic Topo
           </div>
           <div className="flex items-center gap-1.5 border border-[#B66F55] bg-[#FAF8F3] px-2.5 py-1 text-xs text-[#654536] font-semibold">
             <span className="w-2 h-2 bg-[#B66F55] inline-block" />
-            Hazard Polygons (5 Sectors Active)
+            Hazard Polygons
           </div>
+          {selectedRiskAreaId && (
+            <>
+              <div className="flex items-center gap-1.5 border border-[#18324A] bg-[#FAF8F3] px-2.5 py-1 text-xs text-[#18324A]">
+                <span className="w-2 h-2 border border-[#18324A] rounded-full inline-block" />
+                Settlements
+              </div>
+              <div className="flex items-center gap-1.5 border border-[#8A624E] bg-[#FAF8F3] px-2.5 py-1 text-xs text-[#654536]">
+                <span className="w-3 h-0.5 bg-[#8A624E] inline-block" />
+                Road Risk
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-3 text-xs font-sans">
           {selectedRiskAreaId ? (
             <div className="flex items-center gap-2">
               <span className="text-[#68747B]">
-                Selected Sector:{' '}
-                <strong className="text-[#18324A] font-semibold">
+                Selected:{' '}
+                <strong className="text-[#18324A]">
                   {PROTOTYPE_RISK_AREAS.find((a) => a.id === selectedRiskAreaId)?.name}
                 </strong>
               </span>
@@ -264,33 +290,32 @@ export const RiskMap: React.FC<RiskMapProps> = ({
                 className="px-2 py-0.5 border border-[#D9D0C4] bg-[#FAF8F3] text-[11px] font-mono text-[#654536] hover:bg-[#F3EEE5] uppercase cursor-pointer"
                 aria-label="Clear active risk sector selection"
               >
-                Clear Selection ×
+                Clear ×
               </button>
             </div>
           ) : (
             <span className="text-[#68747B]">
-              Focus Sector:{' '}
-              <strong className="text-[#18324A] font-semibold">{activeTaluka}</strong>
+              Focus: <strong className="text-[#18324A]">{activeTaluka}</strong>
             </span>
           )}
         </div>
       </div>
 
-      {/* Primary Leaflet Map Container */}
-      <div 
-        ref={mapContainerRef} 
+      {/* Leaflet map */}
+      <div
+        ref={mapContainerRef}
         className="flex-1 w-full h-full min-h-[460px] z-0 focus:outline-none"
         aria-label="Interactive Pune District Flood Risk Map"
       />
 
-      {/* Cartographic Floating Legend (Bottom-Right) */}
-      <div className="absolute bottom-4 right-4 z-[400] max-w-xs pointer-events-auto">
+      {/* Floating legend */}
+      <div className="absolute bottom-4 right-4 z-[400] max-w-[220px] pointer-events-auto">
         <MapLegend />
       </div>
 
-      {/* Cartographic Centroid Readout (Bottom-Left) */}
+      {/* Centroid readout */}
       <div className="absolute bottom-3 left-28 z-[400] hidden sm:flex items-center gap-2 border border-[#D9D0C4] bg-[#FAF8F3]/90 px-2.5 py-1 text-[11px] font-mono text-[#68747B] pointer-events-none">
-        <span>Center: 18.5204°N, 73.8567°E</span>
+        <span>18.5204°N, 73.8567°E</span>
         <span className="text-[#D9D0C4]">|</span>
         <span>Pune District Grid</span>
       </div>

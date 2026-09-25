@@ -6,10 +6,12 @@ import { Badge } from '@/components/ui/Badge';
 import { DataField } from '@/components/ui/DataField';
 import { EvidenceList } from '@/components/dashboard/EvidenceList';
 import { Button } from '@/components/ui/Button';
+import { ImpactChainView } from '@/components/dashboard/ImpactChainView';
 import {
   PROTOTYPE_HAZARD_ASSESSMENT,
   PROTOTYPE_RISK_AREAS,
-  PROTOTYPE_SETTLEMENT_SAMPLES,
+  PROTOTYPE_SETTLEMENTS,
+  PROTOTYPE_ROADS,
   PROTOTYPE_PRIORITY_SAMPLES,
   PROTOTYPE_NOTICE
 } from '@/data/fixtureData';
@@ -28,7 +30,7 @@ export const OperationalPanel: React.FC<OperationalPanelProps> = ({
   const [activeTab, setActiveTab] = useState<'hazard' | 'settlements' | 'priority'>('hazard');
 
   const selectedArea = selectedRiskAreaId
-    ? PROTOTYPE_RISK_AREAS.find((a) => a.id === selectedRiskAreaId)
+    ? PROTOTYPE_RISK_AREAS.find((a) => a.id === selectedRiskAreaId) ?? null
     : null;
 
   // Derive active assessment data: selected area or district baseline
@@ -59,6 +61,25 @@ export const OperationalPanel: React.FC<OperationalPanelProps> = ({
     if (activeTaluka === 'All Talukas') return true;
     return area.taluka.toLowerCase() === activeTaluka.toLowerCase();
   });
+
+  // Settlements and roads tied to selected risk area
+  const selectedSettlements = selectedArea
+    ? PROTOTYPE_SETTLEMENTS.filter((s) => s.riskAreaId === selectedArea.id)
+    : [];
+
+  const selectedRoads = selectedArea
+    ? PROTOTYPE_ROADS.filter((r) => r.riskAreaId === selectedArea.id)
+    : [];
+
+  // Filter settlements for the dedicated Settlements directory tab
+  const displaySettlements = PROTOTYPE_SETTLEMENTS.filter((s) => {
+    if (selectedRiskAreaId) return s.riskAreaId === selectedRiskAreaId;
+    if (activeTaluka === 'All Talukas') return true;
+    return s.taluka.toLowerCase() === activeTaluka.toLowerCase();
+  });
+
+  const totalExposedPopulation = displaySettlements.reduce((sum, s) => sum + s.population, 0);
+  const totalExposedHouseholds = displaySettlements.reduce((sum, s) => sum + s.affectedHouseholds, 0);
 
   return (
     <div className="flex flex-col h-full divide-y divide-[#D9D0C4] bg-[#FAF8F3] text-[#273038]">
@@ -103,7 +124,7 @@ export const OperationalPanel: React.FC<OperationalPanelProps> = ({
               : 'border-b-transparent text-[#68747B] hover:text-[#273038] hover:bg-[#F3EEE5]/20'
           }`}
         >
-          Settlements (M3)
+          Settlements ({displaySettlements.length})
         </button>
         <button
           onClick={() => setActiveTab('priority')}
@@ -139,8 +160,8 @@ export const OperationalPanel: React.FC<OperationalPanelProps> = ({
               </div>
             ) : (
               <div className="border border-[#D9D0C4] bg-[#FAF8F3] p-2 text-xs font-sans text-[#68747B] flex items-center justify-between">
-                <span>Displaying District Overview</span>
-                <span className="text-[11px] font-mono text-[#8A624E]">Click a map polygon to inspect</span>
+                <span>Displaying District Baseline Overview</span>
+                <span className="text-[11px] font-mono text-[#8A624E]">Select a sector to inspect impact</span>
               </div>
             )}
 
@@ -219,22 +240,40 @@ export const OperationalPanel: React.FC<OperationalPanelProps> = ({
               </CardContent>
             </Card>
 
-            {/* Explainability Evidence Card */}
-            <Card variant="paper">
-              <CardHeader
-                title="Explainability & Localized Evidence"
-                subtitle="Deterministic threshold triggers for active sector"
-              />
-              <CardContent>
-                <EvidenceList evidence={activeAssessment.evidence} />
-              </CardContent>
-            </Card>
+            {/* When a sector IS selected: Render the complete Operational Impact Chain */}
+            {selectedArea ? (
+              <Card variant="paper">
+                <CardHeader
+                  title="Operational Impact Chain"
+                  subtitle="Deterministic sequence: Area → Evidence → Settlements → Impact → Road Risk"
+                  badge={<Badge variant={selectedArea.riskLevel}>{selectedArea.riskLevel}</Badge>}
+                />
+                <CardContent noPadding>
+                  <ImpactChainView
+                    area={selectedArea}
+                    settlements={selectedSettlements}
+                    roads={selectedRoads}
+                  />
+                </CardContent>
+              </Card>
+            ) : (
+              /* When no sector is selected: show baseline Evidence and an invite to select */
+              <Card variant="paper">
+                <CardHeader
+                  title="District Baseline Evidence"
+                  subtitle="Threshold triggers observed across Pune district extent"
+                />
+                <CardContent>
+                  <EvidenceList evidence={activeAssessment.evidence} />
+                </CardContent>
+              </Card>
+            )}
 
             {/* Mapped Risk Sectors Quick Selector */}
             <Card variant="cream">
               <CardHeader
                 title="Mapped Risk Sectors"
-                subtitle={`Showing ${visibleSectors.length} prototype sector(s)`}
+                subtitle={`Showing ${visibleSectors.length} sector(s) · Click to inspect impact chain`}
               />
               <CardContent noPadding>
                 <div className="divide-y divide-[#D9D0C4] font-sans text-xs">
@@ -273,36 +312,117 @@ export const OperationalPanel: React.FC<OperationalPanelProps> = ({
 
         {activeTab === 'settlements' && (
           <>
-            <div className="border border-[#D9D0C4] bg-[#F3EEE5] p-3 text-xs text-[#654536]">
-              <span className="font-bold font-sans">Milestone 3 Integration Target:</span>
-              <p className="text-xs font-sans text-[#273038] mt-1 leading-snug">
-                Settlement boundary ingestion, population weighting, and local exposure calculation will be integrated in Milestone 3. The entries below demonstrate layout structure.
+            {/* Filter scope indicator */}
+            <div className="border border-[#D9D0C4] bg-[#F3EEE5] p-3 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold font-sans text-[#18324A]">
+                  {selectedArea
+                    ? `Sector Scope: ${selectedArea.name} (${selectedArea.taluka})`
+                    : `District Scope: ${activeTaluka}`}
+                </span>
+                {selectedArea && (
+                  <button
+                    onClick={() => onSelectRiskArea(null)}
+                    className="text-[11px] font-mono text-[#654536] hover:underline cursor-pointer"
+                  >
+                    View All Talukas ×
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] font-sans text-[#68747B] mt-1">
+                Prototype demographic exposure and access vulnerability records mapped to identified hazard sectors.
               </p>
             </div>
 
-            <div className="space-y-2.5">
-              {PROTOTYPE_SETTLEMENT_SAMPLES.map((s) => (
-                <div 
-                  key={s.id}
-                  className="border border-[#D9D0C4] bg-[#FAF8F3] p-3 space-y-2 text-xs"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-serif font-bold text-sm text-[#18324A]">{s.name}</span>
-                    <Badge variant={s.riskLevel}>{s.riskLevel}</Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-xs font-sans text-[#68747B]">
-                    <span>Taluka: {s.taluka}</span>
-                    <span className="font-mono">Est. Pop: {s.estimatedPopulation.toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs font-sans">
-                    <span className="text-[#68747B]">Access:</span>
-                    <Badge variant={s.accessStatus} size="sm">{s.accessStatus}</Badge>
-                  </div>
-                  <p className="text-xs font-sans text-[#654536] border-t border-[#D9D0C4]/60 pt-1 italic">
-                    {s.note}
-                  </p>
+            {/* Aggregate Exposure Metrics */}
+            <div className="grid grid-cols-2 gap-2 border border-[#D9D0C4] bg-[#FAF8F3] p-2.5">
+              <div>
+                <span className="text-[10px] uppercase font-mono tracking-wider text-[#68747B]">
+                  Exposed Population
+                </span>
+                <div className="text-lg font-serif font-bold text-[#18324A]">
+                  {totalExposedPopulation.toLocaleString()}
                 </div>
-              ))}
+                <span className="text-[10px] text-[#68747B]">Across {displaySettlements.length} settlement(s)</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-mono tracking-wider text-[#68747B]">
+                  Exposed Households
+                </span>
+                <div className="text-lg font-serif font-bold text-[#18324A]">
+                  {totalExposedHouseholds.toLocaleString()}
+                </div>
+                <span className="text-[10px] text-[#68747B]">Habitation units</span>
+              </div>
+            </div>
+
+            {/* Settlement List */}
+            <div className="space-y-2.5">
+              {displaySettlements.length === 0 ? (
+                <div className="border border-[#D9D0C4] bg-[#FAF8F3] p-4 text-center text-xs text-[#68747B] italic">
+                  No settlement records found for this scope.
+                </div>
+              ) : (
+                displaySettlements.map((s) => {
+                  const parentArea = PROTOTYPE_RISK_AREAS.find((a) => a.id === s.riskAreaId);
+                  const relatedRoads = PROTOTYPE_ROADS.filter((r) => r.riskAreaId === s.riskAreaId);
+
+                  return (
+                    <div 
+                      key={s.id}
+                      className="border border-[#D9D0C4] bg-[#FAF8F3] p-3 space-y-2 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-serif font-bold text-sm text-[#18324A]">{s.name}</span>
+                        <Badge variant={s.impactLevel}>{s.impactLevel}</Badge>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between text-xs font-sans text-[#68747B] border-b border-[#D9D0C4]/50 pb-1.5 gap-y-1">
+                        <span>Taluka: <strong className="text-[#273038]">{s.taluka}</strong></span>
+                        <span className="font-mono">
+                          Pop: <strong className="text-[#18324A]">{s.population.toLocaleString()}</strong> ({s.affectedHouseholds.toLocaleString()} HH)
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] font-mono text-[#68747B]">
+                        <span>Risk Sector: <strong className="text-[#273038]">{parentArea?.name ?? s.riskAreaId}</strong></span>
+                        <span>{s.latitude.toFixed(4)}°N, {s.longitude.toFixed(4)}°E</span>
+                      </div>
+
+                      <p className="text-xs font-sans text-[#654536] border-t border-[#D9D0C4]/60 pt-1.5 italic">
+                        {s.vulnerabilityContext}
+                      </p>
+
+                      {/* Associated Road Link Preview */}
+                      {relatedRoads.length > 0 && (
+                        <div className="border-t border-[#D9D0C4]/60 pt-1.5 space-y-1">
+                          <span className="text-[10px] uppercase font-mono tracking-wider text-[#68747B]">
+                            Transit Exposure ({relatedRoads.length} route{relatedRoads.length !== 1 ? 's' : ''}):
+                          </span>
+                          <div className="space-y-1">
+                            {relatedRoads.map((road) => (
+                              <div key={road.id} className="flex items-center justify-between text-[11px] font-sans">
+                                <span className="text-[#18324A] truncate max-w-[200px]">{road.name}</span>
+                                <span
+                                  className={`font-mono text-[9px] uppercase px-1 py-0.2 border font-bold ${
+                                    road.status === 'CONFIRMED BLOCKED'
+                                      ? 'text-[#B66F55] border-[#B66F55]'
+                                      : road.status === 'AT RISK'
+                                      ? 'text-[#8A624E] border-[#8A624E]'
+                                      : 'text-[#557A95] border-[#557A95]'
+                                  }`}
+                                >
+                                  {road.status}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           </>
         )}
