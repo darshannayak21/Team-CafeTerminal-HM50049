@@ -40,3 +40,9 @@ Thumbs.db
 
 # Temporary files
 *.tmp
+
+# Raw and large geospatial data
+data/raw/
+*.tif
+*.tiff
+*.geotiff

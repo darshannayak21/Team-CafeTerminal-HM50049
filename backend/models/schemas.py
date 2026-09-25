@@ -327,3 +327,214 @@ class HourlyPrecipitationData:
             source=str(data.get("source", "open-meteo")),
             fetched_at=str(data.get("fetched_at", datetime.now(timezone.utc).isoformat())),
         )
+
+
+@dataclass
+class Settlement:
+    """Settlement or administrative boundary unit representation.
+
+    Attributes:
+        settlement_id: Stable identifier for the settlement or administrative unit.
+        name: Common name of the settlement or unit.
+        latitude: Centroid / representative latitude coordinate [-90.0, 90.0].
+        longitude: Centroid / representative longitude coordinate [-180.0, 180.0].
+        population: Total aggregated population count (must be non-negative).
+        taluka: Optional administrative subdivision / taluka name.
+        geometry: Optional GeoJSON geometry dict representing polygon boundaries.
+    """
+    settlement_id: str
+    name: str
+    latitude: float
+    longitude: float
+    population: float
+    taluka: str | None = None
+    geometry: Dict[str, Any] | None = None
+
+    def validate(self) -> None:
+        """Validate settlement fields and coordinate/population constraints.
+
+        Raises:
+            ValueError: If settlement_id or name is missing/empty, coordinates are
+                        out of bounds, or population is missing, NaN, or negative.
+        """
+        if self.settlement_id is None or not str(self.settlement_id).strip():
+            raise ValueError("Settlement requires a non-empty 'settlement_id'.")
+        if self.name is None or not str(self.name).strip():
+            raise ValueError("Settlement requires a non-empty 'name'.")
+
+        if self.latitude is None or not isinstance(self.latitude, (int, float)):
+            raise ValueError(f"Invalid latitude: {self.latitude}. Must be a valid number.")
+        if not (-90.0 <= float(self.latitude) <= 90.0):
+            raise ValueError(f"Invalid latitude: {self.latitude}. Latitude must be between -90.0 and 90.0.")
+
+        if self.longitude is None or not isinstance(self.longitude, (int, float)):
+            raise ValueError(f"Invalid longitude: {self.longitude}. Must be a valid number.")
+        if not (-180.0 <= float(self.longitude) <= 180.0):
+            raise ValueError(f"Invalid longitude: {self.longitude}. Longitude must be between -180.0 and 180.0.")
+
+        if self.population is None or not isinstance(self.population, (int, float)):
+            raise ValueError(
+                "Settlement population must be a non-null number. Missing population must not silently become zero."
+            )
+
+        import math
+        pop_float = float(self.population)
+        if math.isnan(pop_float) or math.isinf(pop_float):
+            raise ValueError("Settlement population cannot be NaN or infinite.")
+        if pop_float < 0.0:
+            raise ValueError(f"Settlement population cannot be negative: {self.population}")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert Settlement instance to a JSON-compatible dictionary."""
+        data: Dict[str, Any] = {
+            "settlement_id": self.settlement_id,
+            "name": self.name,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "population": self.population,
+        }
+        if self.taluka is not None:
+            data["taluka"] = self.taluka
+        if self.geometry is not None:
+            data["geometry"] = self.geometry
+        return data
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Settlement":
+        """Instantiate Settlement from a dictionary with strict validation.
+
+        Args:
+            data: Dictionary containing settlement fields.
+
+        Returns:
+            Validated Settlement instance.
+
+        Raises:
+            ValueError: If required fields are missing or invalid.
+        """
+        if not isinstance(data, dict):
+            raise ValueError("Settlement.from_dict requires a dictionary.")
+
+        if "settlement_id" not in data or data["settlement_id"] is None:
+            raise ValueError("Settlement requires 'settlement_id'.")
+        if "name" not in data or data["name"] is None:
+            raise ValueError("Settlement requires 'name'.")
+        if "latitude" not in data or data["latitude"] is None:
+            raise ValueError("Settlement requires 'latitude'.")
+        if "longitude" not in data or data["longitude"] is None:
+            raise ValueError("Settlement requires 'longitude'.")
+        if "population" not in data or data["population"] is None:
+            raise ValueError(
+                "Settlement requires non-null 'population'. Missing population cannot silently become zero."
+            )
+
+        instance = cls(
+            settlement_id=str(data["settlement_id"]).strip(),
+            name=str(data["name"]).strip(),
+            latitude=float(data["latitude"]),
+            longitude=float(data["longitude"]),
+            population=float(data["population"]),
+            taluka=str(data["taluka"]) if data.get("taluka") is not None else None,
+            geometry=data.get("geometry"),
+        )
+        instance.validate()
+        return instance
+
+
+@dataclass
+class SettlementImpact:
+    """Settlement impact assessment contract.
+
+    Represents the synthesized risk impact for a settlement by coupling
+    environmental hazard scoring with real population exposure:
+
+        settlement_impact = hazard_score * population
+
+    Attributes:
+        settlement_id: Stable identifier of the evaluated settlement.
+        settlement_name: Name of the settlement.
+        population: Real population count exposed in the settlement.
+        hazard_score: Normalized composite hazard score in range [0.0, 1.0].
+        settlement_impact: Impact metric defined as hazard_score * population.
+        taluka: Optional administrative subdivision / taluka name.
+    """
+    settlement_id: str
+    settlement_name: str
+    population: float
+    hazard_score: float
+    settlement_impact: float
+    taluka: str | None = None
+
+    def validate(self) -> None:
+        """Validate settlement impact fields and scoring constraints.
+
+        Raises:
+            ValueError: If fields are invalid, hazard score is outside [0.0, 1.0],
+                        or population is negative.
+        """
+        if not self.settlement_id or not str(self.settlement_id).strip():
+            raise ValueError("SettlementImpact requires a non-empty 'settlement_id'.")
+        if not self.settlement_name or not str(self.settlement_name).strip():
+            raise ValueError("SettlementImpact requires a non-empty 'settlement_name'.")
+
+        if self.hazard_score is None or not isinstance(self.hazard_score, (int, float)):
+            raise ValueError(f"Hazard score must be a number: {self.hazard_score}")
+        if not (0.0 <= float(self.hazard_score) <= 1.0):
+            raise ValueError(
+                f"Hazard score must be within [0.0, 1.0], got {self.hazard_score}"
+            )
+
+        if self.population is None or not isinstance(self.population, (int, float)):
+            raise ValueError(f"Population must be a non-null number: {self.population}")
+        if float(self.population) < 0.0:
+            raise ValueError(f"Population cannot be negative: {self.population}")
+
+        if self.settlement_impact is None or not isinstance(self.settlement_impact, (int, float)):
+            raise ValueError(f"Settlement impact must be a number: {self.settlement_impact}")
+        if float(self.settlement_impact) < 0.0:
+            raise ValueError(f"Settlement impact cannot be negative: {self.settlement_impact}")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert SettlementImpact instance to a JSON-compatible dictionary."""
+        data: Dict[str, Any] = {
+            "settlement_id": self.settlement_id,
+            "settlement_name": self.settlement_name,
+            "population": self.population,
+            "hazard_score": self.hazard_score,
+            "settlement_impact": self.settlement_impact,
+        }
+        if self.taluka is not None:
+            data["taluka"] = self.taluka
+        return data
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SettlementImpact":
+        """Instantiate SettlementImpact from a dictionary.
+
+        Args:
+            data: Dictionary containing settlement impact fields.
+
+        Returns:
+            Validated SettlementImpact instance.
+
+        Raises:
+            ValueError: If required fields are missing or invalid.
+        """
+        if not isinstance(data, dict):
+            raise ValueError("SettlementImpact.from_dict requires a dictionary.")
+
+        required_fields = ["settlement_id", "settlement_name", "population", "hazard_score", "settlement_impact"]
+        for field_name in required_fields:
+            if field_name not in data or data[field_name] is None:
+                raise ValueError(f"SettlementImpact requires non-null field '{field_name}'.")
+
+        instance = cls(
+            settlement_id=str(data["settlement_id"]).strip(),
+            settlement_name=str(data["settlement_name"]).strip(),
+            population=float(data["population"]),
+            hazard_score=float(data["hazard_score"]),
+            settlement_impact=float(data["settlement_impact"]),
+            taluka=str(data["taluka"]) if data.get("taluka") is not None else None,
+        )
+        instance.validate()
+        return instance
