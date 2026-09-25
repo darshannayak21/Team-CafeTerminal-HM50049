@@ -40,10 +40,26 @@ Round 1 prototype for the PCCOE HackMatrix 5.0 problem statement.
 - Documented data source specifications in `docs/data-sources.md` and architecture integration in `docs/architecture.md`.
 - Explicitly documented that this service acts as an ingestion pipeline and does NOT implement hazard scoring or risk classification.
 
+### 2026-09-25 — Rainfall Metrics and Deterministic Hazard Engine Foundation
+
+- Implemented rainfall metrics extraction service (`backend/services/rainfall_service.py`) operating over `HourlyPrecipitationData` and numerical time series.
+- Added deterministic window calculations for 1-hour intensity, 24-hour cumulative precipitation, and 72-hour cumulative precipitation.
+- Enforced strict validation: empty datasets, non-numeric values, negative rainfall, or insufficient series length (<24h for 24h, <72h for 72h) raise explicit `ValueError` rather than silently converting missing data to zero.
+- Added configurable rainfall normalization utilities (`RainfallNormalizationConfig`) scaling physical precipitation depths to a bounded [0.0, 1.0] interval using min-max scaling and clipping.
+- Defined `RainfallMetrics` schema contract and extended `HazardOutput` with normalized `component_scores` breakdown and backward-compatible serialization.
+- Added strict physical and geographic boundary validation to `HazardInput` (`lat` in [-90, 90], `lon` in [-180, 180], non-negative rainfall, normalized terrain and historical flood factors in [0.0, 1.0]).
+- Implemented `calculate_hazard_score` in `backend/services/hazard_engine.py`, replacing the previous `NotImplementedError` interface placeholder.
+- Designed deterministic multi-factor scoring formula combining normalized 1h, 24h, 72h rainfall, terrain susceptibility, and historical flood proximity via explicit weights (`HazardWeights`) summing strictly to 1.0.
+- Implemented qualitative risk categorization (`RiskThresholds`) mapping composite scores to 'LOW', 'MODERATE', 'HIGH', and 'CRITICAL' tiers.
+- Built explainability evidence generation flagging contributing triggers (e.g. `high_1h_rainfall`, `high_72h_rainfall`, `high_terrain_susceptibility`, `near_historical_flood_zone`).
+- Configured environment-driven constants in `backend/config.py` for rainfall normalization bounds, model weights, and risk classification thresholds.
+- Created `tests/test_rainfall_service.py` and expanded `tests/test_hazard.py` with 39 new tests covering 1h/24h/72h metrics, normalization boundaries, edge cases, error conditions, determinism, and end-to-end weather-to-hazard integration.
+- Strictly maintained scope discipline: no external dependencies, no database, no LLM for numerical decisions, and no unapproved integrations.
+
 ## Current Status
 
-Backend foundation active, data contracts defined, and Open-Meteo hourly precipitation ingestion service implemented and tested. All 35 tests passing. Hazard engine remains an un-implemented interface stub.
+Backend foundation active, data contracts extended with `RainfallMetrics` and `component_scores`, Open-Meteo ingestion service active, rainfall metrics extraction verified, and deterministic hazard scoring engine fully implemented and tested. All 74 tests passing.
 
 ## Next Step
 
-Implement rainfall aggregation/preprocessing logic (extracting 1h intensity and 24h/72h cumulative depths from `HourlyPrecipitationData`) and prepare terrain susceptibility ingestion.
+Implement terrain susceptibility ingestion and slope analysis (SRTM / elevation data processing) to supply physical catchment metrics into the hazard scoring pipeline.
