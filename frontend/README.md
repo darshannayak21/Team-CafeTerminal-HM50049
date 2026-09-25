@@ -6,15 +6,16 @@ This directory contains the Next.js (App Router, TypeScript) web client for the 
 
 The console provides operational flood-hazard visibility and priority intelligence for emergency responders in Pune District, Maharashtra.
 
-## Milestone Status: Milestone 1 — Frontend Foundation
+## Milestone Status: Milestone 2 — Interactive Risk Map & Area Selection
 
-This codebase represents **Milestone 1** of the incremental frontend implementation:
-- **Visual Design System:** Restrained editorial / cartographic visual theme with custom palette (Deep Navy, Paper, Warm Cream, Charcoal, Terracotta, Muted Blue, and Dark Brown).
-- **Layout Architecture:** Dedicated central map workspace stage with cartographic coordinate grid markers, scale rules, and a right-side operational intelligence details panel.
-- **Component System:** Modular, accessible components across `layout/` (`Header`, `DistrictContextBar`, `DashboardGrid`), `ui/` (`Badge`, `Button`, `Card`, `DataField`), and `dashboard/` (`MapWorkspacePlaceholder`, `OperationalPanel`, `EvidenceList`).
-- **Data Contracts & Fixtures:** Explicit TypeScript types (`types/hazard.ts`, `types/operational.ts`) and labeled local prototype fixture data (`data/fixtureData.ts`).
+This codebase incorporates **Milestone 2** on top of the established Milestone 1 foundation:
+- **Interactive Map:** Leaflet-based dynamic geospatial map centered on Pune District (`18.5204° N, 73.8567° E`) rendered client-side (`ssr: false`) to avoid hydration errors.
+- **Risk Area Polygons:** Prototype polygon overlays across Pune District (Mula-Mutha Confluence Basin, Khadakwasla Dam Spillway, Mulshi Catchment Valley, Pawana River Lowland, Kukadi Northern Floodplain) visually color-coded according to risk tiers (`CRITICAL`, `HIGH`, `MODERATE`, `LOW`).
+- **Interactive Selection:** Clicking any risk polygon highlights its boundaries, centers the view, and updates the right-side operational panel with localized composite hazard scoring, component factors, and deterministic evidence triggers.
+- **Map Legend & Controls:** Cartographic map legend, zoom controls, scale rule, and sector quick-selector.
+- **Data Contracts & Fixtures:** Explicit `RiskArea` TypeScript contracts (`types/hazard.ts`) with strictly labeled local fixture data (`data/fixtureData.ts`).
 
-*Note: Live backend API integration, interactive Leaflet rendering, settlement risk extraction, and priority queue calculations are intentionally deferred to subsequent milestones.*
+*Note: Settlement impact buffering, road network risk classification, and automated priority queue ranking are scheduled for Milestones 3, 4, and 5.*
 
 ## Getting Started
 
