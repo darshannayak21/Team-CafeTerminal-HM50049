@@ -114,11 +114,11 @@ export const OperationalPanel: React.FC<OperationalPanelProps> = ({
       {/* Operational View Tab Switches */}
       <nav 
         aria-label="Operational views"
-        className="flex border-b border-[#D9D0C4] bg-[#FAF8F3] font-sans text-xs"
+        className="flex border-b border-[#D9D0C4] bg-[#FAF8F3] font-sans text-[11px] sm:text-xs overflow-x-auto scrollbar-none"
       >
         <button
           onClick={() => setActiveTab('hazard')}
-          className={`flex-1 py-2 px-3 text-center uppercase tracking-wider transition-none border-b-2 cursor-pointer ${
+          className={`flex-1 py-2 px-2 sm:px-3 text-center uppercase tracking-wider transition-none border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'hazard'
               ? 'border-b-[#18324A] font-bold text-[#18324A] bg-[#F3EEE5]/40'
               : 'border-b-transparent text-[#68747B] hover:text-[#273038] hover:bg-[#F3EEE5]/20'
@@ -128,7 +128,7 @@ export const OperationalPanel: React.FC<OperationalPanelProps> = ({
         </button>
         <button
           onClick={() => setActiveTab('settlements')}
-          className={`flex-1 py-2 px-3 text-center uppercase tracking-wider transition-none border-b-2 cursor-pointer ${
+          className={`flex-1 py-2 px-2 sm:px-3 text-center uppercase tracking-wider transition-none border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'settlements'
               ? 'border-b-[#18324A] font-bold text-[#18324A] bg-[#F3EEE5]/40'
               : 'border-b-transparent text-[#68747B] hover:text-[#273038] hover:bg-[#F3EEE5]/20'
@@ -138,7 +138,7 @@ export const OperationalPanel: React.FC<OperationalPanelProps> = ({
         </button>
         <button
           onClick={() => setActiveTab('priority')}
-          className={`flex-1 py-2 px-3 text-center uppercase tracking-wider transition-none border-b-2 cursor-pointer ${
+          className={`flex-1 py-2 px-2 sm:px-3 text-center uppercase tracking-wider transition-none border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === 'priority'
               ? 'border-b-[#18324A] font-bold text-[#18324A] bg-[#F3EEE5]/40'
               : 'border-b-transparent text-[#68747B] hover:text-[#273038] hover:bg-[#F3EEE5]/20'
@@ -484,7 +484,7 @@ export const OperationalPanel: React.FC<OperationalPanelProps> = ({
       </div>
 
       {/* Operational Panel Footer / Actions */}
-      <div className="p-3 bg-[#F3EEE5] border-t border-[#D9D0C4] flex items-center justify-between gap-2">
+      <div className="p-3 bg-[#F3EEE5] border-t border-[#D9D0C4] flex flex-wrap items-center justify-between gap-2 shrink-0">
         <span className="text-xs font-sans text-[#68747B]">
           Scope: <strong className="font-mono text-[#18324A]">{activeTaluka}</strong>
         </span>
