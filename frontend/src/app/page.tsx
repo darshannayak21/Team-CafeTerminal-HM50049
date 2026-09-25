@@ -11,6 +11,9 @@ import { PROTOTYPE_RISK_AREAS } from '@/data/fixtureData';
 export default function DashboardPage() {
   const [selectedTaluka, setSelectedTaluka] = useState<string>('All Talukas');
   const [selectedRiskAreaId, setSelectedRiskAreaId] = useState<string | null>(null);
+  const [isHistoricalReplay, setIsHistoricalReplay] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [simulatedError, setSimulatedError] = useState<string | null>(null);
 
   // When changing taluka scope, clear selected risk area if it belongs to a different taluka
   const handleSelectTaluka = (taluka: string) => {
@@ -23,10 +26,51 @@ export default function DashboardPage() {
     }
   };
 
+  // Toggle between active incident briefing and archived historical event replay
+  const handleToggleHistoricalReplay = () => {
+    const nextState = !isHistoricalReplay;
+    setIsHistoricalReplay(nextState);
+
+    // If entering historical replay, auto-focus on Mulshi (the historical epicenter)
+    if (nextState) {
+      setSelectedTaluka('Mulshi');
+      setSelectedRiskAreaId('RA-PUNE-03');
+    } else {
+      setSelectedTaluka('All Talukas');
+      setSelectedRiskAreaId(null);
+    }
+  };
+
+  // Simulate local loading state for demonstration / verification
+  const handleSimulateLoading = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 1200);
+  };
+
+  // Toggle simulated operational error state
+  const handleToggleError = () => {
+    if (simulatedError) {
+      setSimulatedError(null);
+    } else {
+      setSimulatedError(
+        'Telemetry warning: Downstream culvert sensor dropped offline. Spatial coordinates for secondary transit links unverified.'
+      );
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-[#FAF8F3]">
-      {/* Top Header: Operational jurisdiction, incident designation, status badge */}
-      <Header />
+      {/* Top Header: Operational jurisdiction, historical replay toggle, status badges */}
+      <Header
+        isHistoricalReplay={isHistoricalReplay}
+        onToggleHistoricalReplay={handleToggleHistoricalReplay}
+        isLoading={isLoading}
+        onSimulateLoading={handleSimulateLoading}
+        isErrorSimulated={Boolean(simulatedError)}
+        onToggleError={handleToggleError}
+      />
 
       {/* District Context Bar: Geographic coordinates, bounding extent, taluka selector */}
       <DistrictContextBar
@@ -48,6 +92,9 @@ export default function DashboardPage() {
             activeTaluka={selectedTaluka}
             selectedRiskAreaId={selectedRiskAreaId}
             onSelectRiskArea={setSelectedRiskAreaId}
+            isLoading={isLoading}
+            error={simulatedError}
+            onClearError={() => setSimulatedError(null)}
           />
         }
       />

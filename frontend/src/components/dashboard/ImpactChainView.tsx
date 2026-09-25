@@ -175,9 +175,15 @@ export const ImpactChainView: React.FC<ImpactChainViewProps> = ({
         </div>
 
         {roads.length === 0 ? (
-          <p className="px-3.5 pb-3 text-[11px] text-[#68747B] italic">
-            No road-risk fixture records linked to this risk area.
-          </p>
+          <div className="mx-3.5 mb-3 p-3 border border-[#D9D0C4] bg-[#FAF8F3] space-y-1 select-none">
+            <div className="flex items-center gap-1.5 text-[11px] font-serif font-bold text-[#18324A] uppercase tracking-wide">
+              <span className="w-1.5 h-1.5 bg-[#68747B]" aria-hidden="true" />
+              No road-risk data available for this area.
+            </div>
+            <p className="text-[11px] font-sans text-[#68747B] leading-snug">
+              No arterial transit disruptions or intersecting hazard segments cataloged in prototype telemetry for this sector. Roadways are not assumed closed without physical inspection evidence.
+            </p>
+          </div>
         ) : (
           <div className="px-3.5 pb-3 space-y-2">
             {roads.map((road) => {
