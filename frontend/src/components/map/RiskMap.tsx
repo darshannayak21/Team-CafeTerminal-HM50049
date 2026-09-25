@@ -276,18 +276,18 @@ export const RiskMap: React.FC<RiskMapProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-3 text-xs font-sans">
+        <div className="flex items-center gap-2 sm:gap-3 text-xs font-sans shrink-0">
           {selectedRiskAreaId ? (
             <div className="flex items-center gap-2">
               <span className="text-[#68747B]">
-                Selected:{' '}
-                <strong className="text-[#18324A]">
+                Sector:{' '}
+                <strong className="text-[#18324A] truncate max-w-[140px] sm:max-w-[200px] inline-block align-bottom">
                   {PROTOTYPE_RISK_AREAS.find((a) => a.id === selectedRiskAreaId)?.name}
                 </strong>
               </span>
               <button
                 onClick={() => onSelectRiskArea(null)}
-                className="px-2 py-0.5 border border-[#D9D0C4] bg-[#FAF8F3] text-[11px] font-mono text-[#654536] hover:bg-[#F3EEE5] uppercase cursor-pointer"
+                className="px-2 py-0.5 border border-[#D9D0C4] bg-[#FAF8F3] text-[11px] font-mono text-[#654536] hover:bg-[#F3EEE5] uppercase cursor-pointer shrink-0"
                 aria-label="Clear active risk sector selection"
               >
                 Clear ×
@@ -304,7 +304,7 @@ export const RiskMap: React.FC<RiskMapProps> = ({
       {/* Leaflet map */}
       <div
         ref={mapContainerRef}
-        className="flex-1 w-full h-full min-h-[460px] z-0 focus:outline-none"
+        className="flex-1 w-full h-full min-h-[360px] sm:min-h-[420px] lg:min-h-0 z-0 focus:outline-none"
         aria-label="Interactive Pune District Flood Risk Map"
       />
 

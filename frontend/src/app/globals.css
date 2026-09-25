@@ -106,3 +106,30 @@ body {
   border: none !important;
 }
 
+/* Subtle cartographic scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F3EEE5;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D9D0C4;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #8A624E;
+}
+
+/* Hide scrollbar for clean tab scrolling */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+

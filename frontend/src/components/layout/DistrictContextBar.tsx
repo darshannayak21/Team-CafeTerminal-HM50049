@@ -53,8 +53,8 @@ export const DistrictContextBar: React.FC<DistrictContextBarProps> = ({
         </div>
 
         {/* Taluka Selector & Hazard Classification */}
-        <div className="flex items-center gap-2.5 ml-auto">
-          <label htmlFor="taluka-filter" className="text-[11px] uppercase tracking-wider text-[#68747B]">
+        <div className="flex items-center justify-between sm:justify-end gap-2.5 w-full sm:w-auto ml-auto">
+          <label htmlFor="taluka-filter" className="text-[11px] uppercase tracking-wider text-[#68747B] shrink-0">
             Taluka Scope:
           </label>
           <select

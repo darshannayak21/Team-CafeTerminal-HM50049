@@ -52,7 +52,7 @@ export const Header: React.FC<HeaderProps> = ({
             aria-hidden="true"
           />
           <div className="flex flex-col">
-            <h1 className="text-lg md:text-xl font-serif font-bold text-[#FAF8F3] tracking-normal leading-tight">
+            <h1 className="text-base sm:text-lg md:text-xl font-serif font-bold text-[#FAF8F3] tracking-normal leading-tight">
               Flood Hazard &amp; Response Intelligence Dashboard
             </h1>
             <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-[#8FAFC2] font-sans">
@@ -88,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
           )}
 
           {/* Prototype State Simulation Controls (Restrained test toggles for reviewers) */}
-          <div className="hidden lg:flex items-center gap-1.5 border border-[#557A95]/60 bg-[#273038]/60 px-2 py-0.5 text-[11px] font-mono text-[#8FAFC2]">
+          <div className="hidden sm:flex items-center gap-1.5 border border-[#557A95]/60 bg-[#273038]/60 px-2 py-0.5 text-[11px] font-mono text-[#8FAFC2]">
             <span className="text-[#8FAFC2]/80 uppercase text-[10px]">States:</span>
             {onSimulateLoading && (
               <button

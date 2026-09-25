@@ -61,7 +61,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden bg-[#FAF8F3]">
+    <div className="flex flex-col min-h-screen lg:h-screen w-full lg:overflow-hidden bg-[#FAF8F3]">
       {/* Top Header: Operational jurisdiction, historical replay toggle, status badges */}
       <Header
         isHistoricalReplay={isHistoricalReplay}
