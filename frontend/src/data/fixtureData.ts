@@ -2,9 +2,10 @@ import { DistrictContext, PrototypePriorityItem, PrototypeSettlementItem } from 
 import { HazardAssessment, RiskArea } from '@/types/hazard';
 import { AffectedSettlement } from '@/types/settlement';
 import { RoadRiskItem } from '@/types/road';
+import { ResponsePriorityItem } from '@/types/priority';
 
 /**
- * PROTOTYPE FIXTURE DATA — MILESTONES 1, 2 & 3.
+ * PROTOTYPE FIXTURE DATA — MILESTONES 1, 2, 3 & 4.
  *
  * NOTE: All values are explicitly fictional/demo fixture data.
  * This data is NOT connected to a live backend API.
@@ -35,11 +36,11 @@ export const PUNE_DISTRICT_CONTEXT: DistrictContext = {
     'Mulshi',
     'Maval',
     'Junnar',
+    'Indapur',
     'Khed',
     'Ambegaon',
     'Shirur',
     'Daund',
-    'Indapur',
     'Baramati',
     'Purandar',
     'Bhor',
@@ -67,7 +68,7 @@ export const PROTOTYPE_HAZARD_ASSESSMENT: HazardAssessment = {
 };
 
 /**
- * Prototype Risk Areas — Milestone 2
+ * Prototype Risk Areas — Milestones 2 & 4
  */
 export const PROTOTYPE_RISK_AREAS: RiskArea[] = [
   {
@@ -230,12 +231,42 @@ export const PROTOTYPE_RISK_AREAS: RiskArea[] = [
       'No structural or accessibility disruptions observed',
     ],
   },
+  {
+    id: 'RA-PUNE-06',
+    name: 'Indapur Wetland Basin',
+    taluka: 'Indapur',
+    riskLevel: 'LOW',
+    hazardScore: 0.28,
+    centroid: [18.115, 75.025],
+    areaKm2: 41.2,
+    summary:
+      'Distal agricultural depression with natural backwater buffering; no active road network hazard intersections recorded in prototype telemetry.',
+    polygon: [
+      [18.145, 74.995],
+      [18.150, 75.055],
+      [18.110, 75.068],
+      [18.085, 75.035],
+      [18.090, 74.990],
+      [18.145, 74.995],
+    ],
+    componentScores: {
+      rainfall_1h: 0.22,
+      rainfall_24h: 0.28,
+      rainfall_72h: 0.31,
+      terrain_susceptibility: 0.24,
+      historical_flood_proximity: 0.30,
+    },
+    evidence: [
+      'Low runoff accumulation; local irrigation canal gates operating normally',
+      'No critical transportation infrastructure intersections mapped',
+      'Historical inundation frequency < 1 event per decade',
+    ],
+  },
 ];
 
 /**
- * Prototype Affected Settlements — Milestone 3.
+ * Prototype Affected Settlements — Milestones 3 & 4.
  * riskAreaId links each settlement to its parent risk zone.
- * All population/household figures are clearly fictional demo data.
  */
 export const PROTOTYPE_SETTLEMENTS: AffectedSettlement[] = [
   // RA-PUNE-01 — Mula-Mutha Confluence Basin (Haveli)
@@ -338,11 +369,25 @@ export const PROTOTYPE_SETTLEMENTS: AffectedSettlement[] = [
     vulnerabilityContext:
       'Agricultural plain with seasonal water-table variability; no structural inundation risk at current hydrology. Demo fixture only.',
   },
+
+  // RA-PUNE-06 — Indapur Basin (Indapur) — explicitly has NO intersecting road hazard
+  {
+    id: 'SET-M3-08',
+    name: 'Indapur Border Hamlet',
+    riskAreaId: 'RA-PUNE-06',
+    taluka: 'Indapur',
+    population: 1450,
+    impactLevel: 'LOW',
+    affectedHouseholds: 310,
+    latitude: 18.1120,
+    longitude: 75.0210,
+    vulnerabilityContext:
+      'Isolated agricultural settlement located in natural depression; no road network disruptions recorded in prototype telemetry.',
+  },
 ];
 
 /**
- * Prototype Road Risk Items — Milestone 3.
- * riskAreaId links each road segment to its parent risk zone.
+ * Prototype Road Risk Items — Milestones 3 & 4.
  *
  * Status semantics:
  *   "AT RISK"           — inferred/intersecting hazard only; NOT confirmed blocked.
@@ -473,9 +518,168 @@ export const PROTOTYPE_ROADS: RoadRiskItem[] = [
       [19.195, 73.915],
     ],
   },
+  // NOTE: RA-PUNE-06 has NO road entries, deliberately verifying the No-Road-Data state!
 ];
 
-// ── Legacy fixture samples (retained from Milestone 1 for non-risk-area settlement tab) ─────────────
+/**
+ * Milestone 4: Operational Response Priority Queue Items.
+ * Strictly linked to riskAreaId, settlements, and verified road-risk conditions.
+ */
+export const PROTOTYPE_PRIORITY_ITEMS: ResponsePriorityItem[] = [
+  {
+    id: 'PRIORITY-01',
+    rank: 1,
+    priorityScore: 0.94,
+    urgency: 'IMMEDIATE',
+    riskLevel: 'CRITICAL',
+    riskAreaId: 'RA-PUNE-03',
+    riskAreaName: 'Mulshi Catchment & Riverine Valley',
+    settlementId: 'SET-M3-04',
+    settlementName: 'Paud Valley Hamlet Cluster',
+    taluka: 'Mulshi',
+    population: 3100,
+    affectedHouseholds: 720,
+    accessStatus: 'ISOLATED',
+    roadStatus: 'CONFIRMED BLOCKED',
+    primaryRoadName: 'Paud–Mulshi Valley Road (NH Spur)',
+    primaryRationale:
+      'Critical terrain runoff convergence (>0.92 hazard score) coupled with confirmed culvert washout at chainage 4.2km cutting off primary vehicular ingress.',
+    recommendedAction:
+      'Dispatch swift-water rescue reconnaissance; mobilize secondary foot-approach supply line from Paud outpost.',
+  },
+  {
+    id: 'PRIORITY-02',
+    rank: 2,
+    priorityScore: 0.88,
+    urgency: 'IMMEDIATE',
+    riskLevel: 'CRITICAL',
+    riskAreaId: 'RA-PUNE-01',
+    riskAreaName: 'Mula-Mutha Confluence Basin',
+    settlementId: 'SET-M3-01',
+    settlementName: 'Mundhwa Riverside Colony',
+    taluka: 'Haveli',
+    population: 8400,
+    affectedHouseholds: 2100,
+    accessStatus: 'AT_RISK',
+    roadStatus: 'CONFIRMED BLOCKED',
+    primaryRoadName: 'Yerawada Access Causeway',
+    primaryRationale:
+      'High-density urban river corridor with backwater surge exceeding threshold by 28%. Confirmed 0.7m causeway submergence with municipal barriers in place.',
+    recommendedAction:
+      'Deploy municipal relief barriers; initiate staged ground-floor evacuation alert for riverside wards.',
+  },
+  {
+    id: 'PRIORITY-03',
+    rank: 3,
+    priorityScore: 0.78,
+    urgency: 'ELEVATED',
+    riskLevel: 'HIGH',
+    riskAreaId: 'RA-PUNE-02',
+    riskAreaName: 'Khadakwasla Dam Spillway Corridor',
+    settlementId: 'SET-M3-03',
+    settlementName: 'Nandoshi Village',
+    taluka: 'Haveli',
+    population: 1840,
+    affectedHouseholds: 460,
+    accessStatus: 'AT_RISK',
+    roadStatus: 'AT RISK',
+    primaryRoadName: 'Sinhagad Road (Lower Section)',
+    primaryRationale:
+      'Downstream of dam spillway release channel. Roadway elevation within 0.8m of discharge envelope (inferred hazard, route not confirmed closed).',
+    recommendedAction:
+      'Stage rescue inflatable craft at Haveli depot; issue early surge warning to village administration.',
+  },
+  {
+    id: 'PRIORITY-04',
+    rank: 4,
+    priorityScore: 0.62,
+    urgency: 'ELEVATED',
+    riskLevel: 'MODERATE',
+    riskAreaId: 'RA-PUNE-04',
+    riskAreaName: 'Pawana River Basin Inundation Zone',
+    settlementId: 'SET-M3-06',
+    settlementName: 'Talegaon Lowland Quarter',
+    taluka: 'Maval',
+    population: 6300,
+    affectedHouseholds: 1540,
+    accessStatus: 'ACCESSIBLE',
+    roadStatus: 'MONITORING',
+    primaryRoadName: 'Talegaon–Maval District Road',
+    primaryRationale:
+      'Semi-urban lowland plain with localized street waterlogging. Arterial road network operational below critical alert threshold.',
+    recommendedAction:
+      'Inspect stormwater pumps at industrial culverts; log hourly water level readings at Pawana bridge gauge.',
+  },
+  {
+    id: 'PRIORITY-05',
+    rank: 5,
+    priorityScore: 0.35,
+    urgency: 'ROUTINE',
+    riskLevel: 'LOW',
+    riskAreaId: 'RA-PUNE-05',
+    riskAreaName: 'Kukadi River Northern Floodplain',
+    settlementId: 'SET-M3-07',
+    settlementName: 'Narayangaon Riverside Zone',
+    taluka: 'Junnar',
+    population: 4100,
+    affectedHouseholds: 980,
+    accessStatus: 'ACCESSIBLE',
+    roadStatus: 'MONITORING',
+    primaryRoadName: 'Narayangaon–Junnar State Highway',
+    primaryRationale:
+      'Broad agricultural floodplain exhibiting baseline hydrological flow. Drainage nala within design tolerances.',
+    recommendedAction:
+      'Standard meteorological monitoring; routine verification of reservoir outflow telemetry.',
+  },
+  {
+    id: 'PRIORITY-06',
+    rank: 6,
+    priorityScore: 0.28,
+    urgency: 'ROUTINE',
+    riskLevel: 'LOW',
+    riskAreaId: 'RA-PUNE-06',
+    riskAreaName: 'Indapur Wetland Basin',
+    settlementId: 'SET-M3-08',
+    settlementName: 'Indapur Border Hamlet',
+    taluka: 'Indapur',
+    population: 1450,
+    affectedHouseholds: 310,
+    accessStatus: 'ACCESSIBLE',
+    roadStatus: 'NO_DATA',
+    primaryRationale:
+      'Distal agricultural depression without active flood threat. No intersecting road network hazards mapped in prototype telemetry.',
+    recommendedAction:
+      'Baseline observational monitoring only; verify local nala bank stability on next routine survey.',
+  },
+];
+
+/**
+ * Milestone 4: Historical Event Replay Scenario metadata.
+ * Clearly demarcated as archived/replay data — not live.
+ */
+export interface HistoricalScenario {
+  id: string;
+  name: string;
+  scenarioDate: string;
+  description: string;
+  baselineScore: number;
+  criticalTaluka: string;
+  archivedNotice: string;
+}
+
+export const HISTORICAL_REPLAY_SCENARIO: HistoricalScenario = {
+  id: 'SCENARIO-2025-AUG',
+  name: 'Pune August 2025 Monsoon Peak Flood (Archived Replay)',
+  scenarioDate: '2025-08-04 · 14:30 IST (Archived)',
+  description:
+    'Post-incident simulation replay reconstructing the August 2025 Western Ghats flash runoff and urban backwater event. Frozen telemetry displayed for training and dispatch evaluation.',
+  baselineScore: 0.91,
+  criticalTaluka: 'Mulshi',
+  archivedNotice:
+    'HISTORICAL REPLAY MODE · ARCHIVED SCENARIO: PUNE MONSOON 2025 · TELEMETRY FROZEN FOR POST-INCIDENT REVIEW',
+};
+
+// ── Legacy fixture samples (retained from Milestone 1) ───────────────────────
 
 export const PROTOTYPE_SETTLEMENT_SAMPLES: PrototypeSettlementItem[] = [
   {
