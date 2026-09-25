@@ -1,5 +1,5 @@
 /**
- * Data contracts for hazard scoring and environmental telemetry.
+ * Data contracts for hazard scoring, environmental telemetry, and spatial risk areas.
  * Aligned with backend domain contracts in backend/models/schemas.py.
  */
 
@@ -25,4 +25,21 @@ export interface HazardAssessment {
   evidence: string[];
   componentScores: HazardComponentScores;
   evaluatedAt: string;
+}
+
+/**
+ * Spatial risk area contract for Milestone 2 polygon layers.
+ */
+export interface RiskArea {
+  id: string;
+  name: string;
+  taluka: string;
+  riskLevel: RiskLevel;
+  hazardScore: number;
+  polygon: [number, number][]; // [lat, lon] coordinate rings
+  centroid: [number, number]; // [lat, lon]
+  areaKm2: number;
+  summary: string;
+  evidence: string[];
+  componentScores: HazardComponentScores;
 }
