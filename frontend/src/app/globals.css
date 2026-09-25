@@ -98,3 +98,11 @@ body {
 .leaflet-tooltip-top.carto-tooltip:before {
   border-top-color: #D9D0C4 !important;
 }
+
+/* Custom Cartographic DivIcon overrides */
+.carto-settlement-icon,
+.carto-reticle-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
