@@ -64,6 +64,7 @@ export const PriorityQueue: React.FC<PriorityQueueProps> = ({
                     ? 'border-[#18324A] bg-[#FAF8F3] shadow-xs ring-1 ring-[#18324A]'
                     : 'border-[#D9D0C4] bg-[#FAF8F3] hover:bg-[#F3EEE5]/40'
                 }`}
+                aria-pressed={isSelected}
               >
                 {/* Header row: Rank, Settlement, Urgency, Risk */}
                 <div className="flex items-start justify-between gap-2">
@@ -126,7 +127,7 @@ export const PriorityQueue: React.FC<PriorityQueueProps> = ({
                         {item.roadStatus === 'NO_DATA' ? 'NO ROAD DATA' : item.roadStatus}
                       </span>
                       {item.primaryRoadName && (
-                        <span className="text-[10px] text-[#273038] truncate max-w-[110px]" title={item.primaryRoadName}>
+                        <span className="text-[10px] text-[#273038] truncate max-w-[110px] sm:max-w-[170px]" title={item.primaryRoadName}>
                           {item.primaryRoadName}
                         </span>
                       )}
