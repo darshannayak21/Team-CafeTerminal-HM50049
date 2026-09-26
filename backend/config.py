@@ -2,6 +2,15 @@
 
 import os
 
+try:
+    with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')) as f:
+        for line in f:
+            if '=' in line and not line.startswith('#'):
+                k, v = line.strip().split('=', 1)
+                os.environ.setdefault(k.strip(), v.strip())
+except FileNotFoundError:
+    pass
+
 
 class Config:
     """Base configuration for backend application."""
