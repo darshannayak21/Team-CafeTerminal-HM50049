@@ -96,7 +96,7 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
       const lat_min = Math.max(18.0, bounds.getSouth());
       const lat_max = Math.min(19.0, bounds.getNorth());
       const lng_min = Math.max(73.0, bounds.getWest());
-      const lng_max = Math.min(74.0, bounds.getEast());
+      const lng_max = Math.min(75.0, bounds.getEast());
 
       if (lat_min >= lat_max || lng_min >= lng_max) return;
 
