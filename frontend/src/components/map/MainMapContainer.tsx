@@ -10,6 +10,7 @@ interface MainMapContainerProps {
   onSelectTaluka?: (id: string) => void;
   onSelectIncident?: (incident: IncidentMarkerData) => void;
   showElevation?: boolean;
+  focusLocation?: [number, number] | null;
 }
 
 const DynamicMainMap = dynamic(
