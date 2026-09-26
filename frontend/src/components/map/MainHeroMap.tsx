@@ -12,17 +12,21 @@ interface MainHeroMapProps {
   selectedTalukaId?: string | null;
   onSelectTaluka?: (id: string) => void;
   onSelectIncident?: (incident: IncidentMarkerData) => void;
+  showElevation?: boolean; // kept for compatibility but not strictly needed anymore
 }
 
 export const MainHeroMap: React.FC<MainHeroMapProps> = ({
   activeRoute,
   onSelectIncident,
+  showElevation,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
   const incidentLayerRef = useRef<L.LayerGroup | null>(null);
   const polygonLayerRef = useRef<L.LayerGroup | null>(null);
+  
+  const [isLegendOpen, setIsLegendOpen] = React.useState(false);
 
   // Initialize Map
   useEffect(() => {
@@ -38,13 +42,12 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
       attributionControl: true,
     });
 
-    L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    const osmBase = L.tileLayer(
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       {
-        subdomains: 'abcd',
         maxZoom: 19,
         attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
+          '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
       }
     ).addTo(map);
 
@@ -60,14 +63,96 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
     incidentLayerRef.current = incidentLayer;
     mapInstanceRef.current = map;
 
+    // Create Overlays
+    const radarLayerGroup = L.layerGroup().addTo(map); // Radar always ON
+    // Fetch RainViewer weather radar
+    fetch('https://api.rainviewer.com/public/weather-maps.json')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.radar?.past?.length > 0) {
+          const pastFrames = data.radar.past;
+          const latestFrame = pastFrames[pastFrames.length - 1]; // Only the LIVE data
+          const tileUrl = `${data.host}${latestFrame.path}/256/{z}/{x}/{y}/2/1_1.png`;
+          
+          L.tileLayer(tileUrl, {
+            opacity: 0.6,
+            zIndex: 10,
+            className: 'weather-radar-layer',
+            maxNativeZoom: 7,
+            maxZoom: 19
+          }).addTo(radarLayerGroup);
+        }
+      })
+      .catch(err => console.error('Failed to load RainViewer data:', err));
+
+    const elevationLayerGroup = L.layerGroup().addTo(map);
+    let currentOverlay: L.ImageOverlay | null = null;
+    let isElevationActive = true;
+
+    const fetchHeatmap = () => {
+      if (!isElevationActive) return;
+      const bounds = map.getBounds();
+      // Clamp to our data bounds
+      const lat_min = Math.max(18.0, bounds.getSouth());
+      const lat_max = Math.min(19.0, bounds.getNorth());
+      const lng_min = Math.max(73.0, bounds.getWest());
+      const lng_max = Math.min(74.0, bounds.getEast());
+
+      if (lat_min >= lat_max || lng_min >= lng_max) return;
+
+      fetch(`http://localhost:5000/api/elevation/heatmap?lat_min=${lat_min}&lat_max=${lat_max}&lng_min=${lng_min}&lng_max=${lng_max}&width=512&height=512`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.image) {
+            if (currentOverlay) {
+               elevationLayerGroup.removeLayer(currentOverlay);
+            }
+            const newBounds: L.LatLngBoundsExpression = [[lat_min, lng_min], [lat_max, lng_max]];
+            currentOverlay = L.imageOverlay(data.image, newBounds, { opacity: 0.85, zIndex: 5 });
+            elevationLayerGroup.addLayer(currentOverlay);
+          }
+        })
+        .catch(err => console.error('Failed to load dynamic heatmap:', err));
+    };
+
+    // Initial fetch
+    fetchHeatmap();
+
+    map.on('moveend', fetchHeatmap);
+    map.on('zoomend', fetchHeatmap);
+
+    map.on('overlayadd', (e: any) => {
+      if (e.name === 'Terrain Elevation (SRTM)') {
+        isElevationActive = true;
+        fetchHeatmap();
+      }
+    });
+
+    map.on('overlayremove', (e: any) => {
+      if (e.name === 'Terrain Elevation (SRTM)') {
+        isElevationActive = false;
+        if (currentOverlay) {
+           elevationLayerGroup.removeLayer(currentOverlay);
+           currentOverlay = null;
+        }
+      }
+    });
+
+    // Add Layer Control
+    L.control.layers(
+      { 'OpenStreetMap': osmBase },
+      { 'Terrain Elevation (SRTM)': elevationLayerGroup },
+      { position: 'topright', collapsed: false }
+    ).addTo(map);
+
     // Render district risk zones (Polygons)
     PROTOTYPE_DISTRICTS.forEach((d: TalukaDistrict) => {
       if (!d.polygonCoordinates) return;
 
       const fillColor =
         d.riskLevel === 'CRITICAL' ? '#B66F55' :
-        d.riskLevel === 'HIGH' ? '#8A624E' :
-        d.riskLevel === 'MODERATE' ? '#557A95' : '#8FAFC2';
+          d.riskLevel === 'HIGH' ? '#8A624E' :
+            d.riskLevel === 'MODERATE' ? '#557A95' : '#8FAFC2';
 
       const poly = L.polygon(d.polygonCoordinates, {
         color: fillColor,
@@ -77,9 +162,9 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
       }).addTo(polygonLayer);
 
       poly.bindTooltip(
-        `<div style="font-family: var(--font-sans); font-size: 11px;">
-           <strong style="color: #18324A;">${d.name} Taluka</strong><br/>
-           <span style="font-family: var(--font-mono); font-size: 10px;">${d.riskLevel} · Score ${d.hazardScore.toFixed(2)}</span>
+        `<div style="font-family: var(--font-sans); font-size: 14px; font-weight: 500;">
+           <strong style="color: var(--color-ink);">${d.name}</strong><br/>
+           <span style="font-size: 12px; color: var(--color-ink-muted-80);">${d.riskLevel} · Score ${d.hazardScore.toFixed(2)}</span>
          </div>`,
         { className: 'carto-tooltip', sticky: true }
       );
@@ -98,20 +183,20 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
       const marker = L.marker(inc.coordinates, { icon: customIcon }).addTo(incidentLayer);
 
       const popupHtml = `
-        <div style="font-family: var(--font-sans); min-width: 200px; padding: 4px; color: #273038;">
-          <div style="font-size: 9px; font-family: var(--font-mono); font-weight: bold; text-transform: uppercase; color: #B66F55; margin-bottom: 2px;">
-            ${inc.type.toUpperCase()} INCIDENT · ${inc.timestamp}
+        <div style="font-family: var(--font-sans); min-width: 220px; padding: 8px; color: var(--color-ink);">
+          <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--color-primary); margin-bottom: 4px; letter-spacing: -0.1px;">
+            ${inc.type} · ${inc.timestamp}
           </div>
-          <div style="font-family: var(--font-serif); font-size: 13px; font-weight: bold; color: #18324A;">
+          <div style="font-size: 15px; font-weight: 600; color: var(--color-ink); margin-bottom: 2px; letter-spacing: -0.2px;">
             ${inc.title}
           </div>
-          <div style="font-size: 11px; color: #68747B; margin-bottom: 6px;">
+          <div style="font-size: 13px; color: var(--color-ink-muted-80); margin-bottom: 8px;">
             ${inc.locationName}
           </div>
-          <div style="font-size: 11px; line-height: 1.4; border-top: 1px solid #D9D0C4; padding-top: 5px; margin-bottom: 6px;">
-            "${inc.description}"
+          <div style="font-size: 14px; line-height: 1.4; border-top: 1px solid var(--color-hairline); padding-top: 8px; margin-bottom: 8px;">
+            ${inc.description}
           </div>
-          <div style="font-size: 9px; font-family: var(--font-mono); color: #8A624E; background: #F3EEE5; padding: 3px 6px; border: 1px solid #D9D0C4;">
+          <div style="font-size: 11px; color: var(--color-ink-muted-48); background: var(--color-surface-pearl); padding: 4px 8px; border-radius: 4px; display: inline-block;">
             Source: ${inc.source}
           </div>
         </div>
@@ -160,12 +245,12 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
     const originIcon = L.divIcon({
       className: 'route-origin-marker',
       html: `
-        <div style="width: 22px; height: 22px; background: #18324A; border: 2px solid #FAF8F3; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #FAF8F3; font-size: 10px; font-weight: bold; font-family: var(--font-mono); box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+        <div style="width: 24px; height: 24px; background: var(--color-primary); border: 2px solid #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 12px; font-weight: 600; font-family: var(--font-sans); box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
           A
         </div>
       `,
-      iconSize: [22, 22],
-      iconAnchor: [11, 11],
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
     });
     L.marker(activeRoute.waypoints[0], { icon: originIcon }).addTo(routeLayer);
 
@@ -173,12 +258,12 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
     const destIcon = L.divIcon({
       className: 'route-dest-marker',
       html: `
-        <div style="width: 22px; height: 22px; background: #B66F55; border: 2px solid #FAF8F3; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #FAF8F3; font-size: 10px; font-weight: bold; font-family: var(--font-mono); box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+        <div style="width: 24px; height: 24px; background: #1d1d1f; border: 2px solid #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 12px; font-weight: 600; font-family: var(--font-sans); box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
           B
         </div>
       `,
-      iconSize: [22, 22],
-      iconAnchor: [11, 11],
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
     });
     L.marker(activeRoute.waypoints[activeRoute.waypoints.length - 1], { icon: destIcon }).addTo(routeLayer);
 
@@ -186,81 +271,72 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
     map.fitBounds(routePolyline.getBounds(), { padding: [50, 50], maxZoom: 13 });
   }, [activeRoute]);
 
+  // Remove old Elevation effect as it's now handled by Layer Control
+
   return (
     <div className="relative w-full h-full min-h-[480px]">
       <div ref={mapContainerRef} className="w-full h-full" />
 
-      {/* Map Legend Overlay */}
-      <div className="absolute top-4 left-4 z-1000 max-w-xs pointer-events-auto">
-        <div className="border border-[#D9D0C4] bg-[#FAF8F3]/95 text-[#273038] text-xs font-sans p-3 shadow-md backdrop-blur-xs">
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#D9D0C4]">
-            <span className="font-serif font-bold text-xs uppercase tracking-wider text-[#18324A]">
-              Map Legend
-            </span>
-            <span className="text-[10px] font-mono text-[#68747B]">PUNE GIS</span>
-          </div>
+      {/* Map Legend Overlay (Collapsible) */}
+      <div className="absolute top-[180px] right-6 z-[1000] pointer-events-auto">
+        <div className="frosted-glass rounded-lg border border-hairline shadow-sm text-ink w-[220px] overflow-hidden transition-all duration-300">
+          <button 
+            type="button"
+            onClick={() => setIsLegendOpen(!isLegendOpen)}
+            className="w-full flex items-center justify-between p-3 bg-canvas/50 hover:bg-canvas/80 transition-colors"
+          >
+            <span className="font-semibold text-[13px] tracking-[-0.2px]">Map Legend</span>
+            <svg 
+              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" 
+              className={`transform transition-transform ${isLegendOpen ? 'rotate-180' : ''}`}
+            >
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          
+          {isLegendOpen && (
+            <div className="p-3 pt-0 space-y-3 border-t border-hairline/50 mt-1">
+              <div>
+                <span className="text-[10px] uppercase tracking-[0.2px] text-ink-muted-48 font-semibold block mb-1.5">
+                  Risk Zones
+                </span>
+                <div className="grid grid-cols-1 gap-1.5 text-[11px] font-medium tracking-[-0.1px]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-[3px] bg-[#B66F55] opacity-80" />
+                    <span>High Risk</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-[3px] bg-[#557A95] opacity-75" />
+                    <span>Moderate</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-[3px] bg-[#8FAFC2] opacity-70" />
+                    <span>Low Risk</span>
+                  </div>
+                </div>
+              </div>
 
-          <div className="space-y-2">
-            <div>
-              <span className="text-[10px] font-mono uppercase text-[#68747B] font-bold block mb-1">
-                Hazard Risk Zones
-              </span>
-              <div className="grid grid-cols-2 gap-1 text-[11px] font-mono">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 bg-[#B66F55] opacity-80" />
-                  <span>High Risk</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 bg-[#557A95] opacity-75" />
-                  <span>Moderate</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 bg-[#8FAFC2] opacity-70" />
-                  <span>Low Risk</span>
+              <div className="border-t border-divider-soft pt-2">
+                <span className="text-[10px] uppercase tracking-[0.2px] text-ink-muted-48 font-semibold block mb-1.5">
+                  Incidents
+                </span>
+                <div className="grid grid-cols-1 gap-1.5 text-[11px] font-medium tracking-[-0.1px] leading-tight">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ff3b30] shrink-0" />
+                    <span>Road Blocked</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ff9500] shrink-0" />
+                    <span>Power Damage</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" />
+                    <span>Needs Assistance</span>
+                  </div>
                 </div>
               </div>
             </div>
-
-            <div className="border-t border-[#D9D0C4]/70 pt-2">
-              <span className="text-[10px] font-mono uppercase text-[#68747B] font-bold block mb-1">
-                Road Network
-              </span>
-              <div className="space-y-1 text-[11px]">
-                <div className="flex items-center gap-2">
-                  <span className="w-4 h-1 bg-[#18324A]" />
-                  <span>Accessible (Recommended)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-4 h-1 bg-[#8A624E]" />
-                  <span>At Risk</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-4 h-1 bg-[#B66F55]" />
-                  <span>Disrupted / Blocked</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t border-[#D9D0C4]/70 pt-2">
-              <span className="text-[10px] font-mono uppercase text-[#68747B] font-bold block mb-1">
-                Field Incidents
-              </span>
-              <div className="grid grid-cols-1 gap-1 text-[11px]">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 bg-[#B66F55] shrink-0" />
-                  <span>Bridge affected / Road blocked</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 bg-[#8A624E] shrink-0" />
-                  <span>Power infrastructure damage</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 bg-[#18324A] shrink-0" />
-                  <span>People requiring assistance</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

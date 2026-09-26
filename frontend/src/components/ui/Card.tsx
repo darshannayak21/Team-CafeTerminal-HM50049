@@ -17,9 +17,9 @@ export const Card: React.FC<CardProps> = ({
   return (
     <div
       className={cn(
-        'border border-[#D9D0C4] transition-none',
-        variant === 'paper' ? 'bg-[#FAF8F3]' : 'bg-[#F3EEE5]',
-        borderAccent && 'border-t-2 border-t-[#18324A]',
+        'border border-hairline rounded-xl shadow-sm',
+        variant === 'paper' ? 'bg-canvas' : 'bg-surface-pearl',
+        borderAccent && 'border-t-2 border-t-primary',
         className
       )}
     >
@@ -46,19 +46,19 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   return (
     <div
       className={cn(
-        'px-3.5 py-2.5 border-b border-[#D9D0C4] flex items-center justify-between gap-2 bg-[#F3EEE5]/60',
+        'px-5 py-4 border-b border-hairline flex items-center justify-between gap-3 bg-canvas/50 rounded-t-xl',
         className
       )}
     >
       <div className="flex flex-col">
-        <div className="flex items-center gap-2">
-          <h2 className="font-serif font-bold text-sm text-[#18324A] tracking-normal">
+        <div className="flex items-center gap-2 mb-0.5">
+          <h2 className="text-[17px] font-semibold text-ink tracking-[-0.374px]">
             {title}
           </h2>
           {badge}
         </div>
         {subtitle && (
-          <p className="text-xs text-[#68747B] font-sans mt-0.5 leading-tight">
+          <p className="text-[13px] text-ink-muted-80 font-normal tracking-[-0.08px] leading-[1.3]">
             {subtitle}
           </p>
         )}

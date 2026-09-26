@@ -1,8 +1,10 @@
 """Main application entry point for the backend Flask service."""
 
 from flask import Flask
+from flask_cors import CORS
 from backend.config import Config, get_config
 from backend.routes.health import health_bp
+from backend.routes.elevation import elevation_bp
 
 
 def create_app(config_class: type[Config] | None = None) -> Flask:
@@ -21,8 +23,11 @@ def create_app(config_class: type[Config] | None = None) -> Flask:
         config_class = get_config()
     app.config.from_object(config_class)
 
+    CORS(app)
+
     # Register routes / blueprints
     app.register_blueprint(health_bp)
+    app.register_blueprint(elevation_bp)
 
     return app
 

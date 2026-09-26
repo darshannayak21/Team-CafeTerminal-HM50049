@@ -11,10 +11,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const sizeClasses = size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-3.5 py-1.5 text-xs';
 
     const variantClasses = {
-      primary: 'bg-[#18324A] text-[#FAF8F3] border-[#18324A] hover:bg-[#273038] active:bg-[#18324A]',
-      secondary: 'bg-[#FAF8F3] text-[#273038] border-[#D9D0C4] hover:bg-[#F3EEE5] active:bg-[#FAF8F3]',
-      outline: 'bg-transparent text-[#654536] border-[#D9D0C4] hover:bg-[#F3EEE5]',
-      terracotta: 'bg-[#B66F55] text-[#FAF8F3] border-[#B66F55] hover:bg-[#8A624E]'
+      primary: 'bg-primary text-white hover:bg-primary-focus border-transparent',
+      secondary: 'bg-surface-pearl text-ink border-hairline hover:bg-canvas-parchment',
+      outline: 'bg-transparent text-ink border-hairline hover:bg-surface-pearl',
+      terracotta: 'bg-[#ff3b30] text-white border-transparent hover:bg-[#ff3b30]/90'
     };
 
     return (
@@ -22,8 +22,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled}
         className={cn(
-          'inline-flex items-center justify-center font-mono uppercase tracking-wider border select-none transition-none cursor-pointer',
-          'focus-visible:outline-2 focus-visible:outline-[#557A95] focus-visible:outline-offset-1',
+          'inline-flex items-center justify-center font-medium rounded-pill border select-none transition-colors cursor-pointer',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
           'disabled:opacity-50 disabled:cursor-not-allowed',
           sizeClasses,
           variantClasses[variant],

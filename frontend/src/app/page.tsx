@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { MainHeader } from '@/components/layout/MainHeader';
 import { RoutePlanner } from '@/components/public/RoutePlanner';
 import { ReportIncidentModal } from '@/components/public/ReportIncidentModal';
@@ -12,93 +11,53 @@ import { RouteOption } from '@/types/prototype';
 export default function MainPage() {
   const [activeRoute, setActiveRoute] = useState<RouteOption | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+  const [showElevation, setShowElevation] = useState<boolean>(false);
 
   return (
-    <div className="flex flex-col min-h-screen lg:h-screen w-full lg:overflow-hidden bg-[#FAF8F3]">
-      {/* ── HEADER ──────────────────────────────────────────────────────── */}
+    <div className="flex flex-col h-screen w-full overflow-hidden bg-canvas">
       <MainHeader currentArea="Pune District" isResponseView={false} />
 
-      {/* ── MAIN WORKSPACE: LEFT SIDEBAR + HERO MAP ─────────────────────── */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Left Sidebar */}
-        <aside className="w-full lg:w-96 shrink-0 flex flex-col border-r border-[#D9D0C4] bg-[#FAF8F3] overflow-y-auto divide-y divide-[#D9D0C4]">
-          {/* Section 1: Route Planner */}
-          <div className="p-3.5">
+      <main className="flex-1 relative w-full h-full">
+        {/* Full Bleed Map Background */}
+        <div className="absolute inset-0 z-0">
+          <MainMapContainer activeRoute={activeRoute} showElevation={showElevation} />
+        </div>
+
+        {/* Floating Utility Panels (Frosted Glass) */}
+        <div className="absolute top-6 left-6 z-10 flex flex-col gap-4 w-[360px] pointer-events-none max-h-[calc(100vh-3rem)] overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          
+          <div className="pointer-events-auto animate-slide-up" style={{ animationDelay: '0.1s' }}>
             <RoutePlanner
               activeRoute={activeRoute}
               onRouteCalculated={setActiveRoute}
             />
           </div>
 
-          {/* Section 2: Report Incident */}
-          <div className="p-3.5">
-            <div className="border border-[#D9D0C4] bg-[#FAF8F3] p-4 text-[#273038]">
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="w-2.5 h-2.5 bg-[#B66F55]" />
-                <h3 className="font-serif font-bold text-sm tracking-tight text-[#18324A] uppercase">
-                  ⚠ Report an Incident
-                </h3>
-              </div>
-              <p className="text-xs font-sans text-[#68747B] mb-3">
-                Share verified ground observations with responding disaster management teams.
-              </p>
-              <button
-                type="button"
-                onClick={() => setIsReportModalOpen(true)}
-                className="w-full py-2.5 px-3 border border-[#B66F55] bg-[#B66F55]/10 hover:bg-[#B66F55] text-[#B66F55] hover:text-[#FAF8F3] font-mono text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
-              >
-                Open Ground Reporting
-              </button>
-            </div>
+          <div className="pointer-events-auto frosted-glass rounded-lg border border-hairline p-4 shadow-sm animate-slide-up" style={{ animationDelay: '0.2s' }}>
+            <h3 className="text-[17px] font-semibold tracking-[-0.374px] text-ink mb-1">
+              Report an Incident
+            </h3>
+            <p className="text-[14px] text-ink-muted-48 leading-[1.43] tracking-[-0.224px] mb-3">
+              Share verified ground observations with responding disaster management teams.
+            </p>
+            <button
+              type="button"
+              onClick={() => setIsReportModalOpen(true)}
+              className="w-full bg-canvas border border-hairline text-primary text-[14px] font-normal rounded-pill px-[22px] py-[10px] hover:scale-95 transition-transform"
+            >
+              Open Ground Reporting
+            </button>
           </div>
 
-          {/* Section 3: Response Team Operational Entry */}
-          <div className="p-3.5">
-            <div className="border-2 border-[#18324A] bg-[#18324A] text-[#FAF8F3] p-4">
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-base">🚑</span>
-                  <h3 className="font-serif font-bold text-sm tracking-wide uppercase text-[#FAF8F3]">
-                    Response Team
-                  </h3>
-                </div>
-                <span className="text-[9px] font-mono uppercase bg-[#273038] px-1.5 py-0.5 border border-[#557A95] text-[#8FAFC2]">
-                  Command
-                </span>
-              </div>
-              <p className="text-xs font-sans text-[#8FAFC2] mb-3">
-                Enter operational response intelligence: district triage, telemetry evidence, and field incident verification.
-              </p>
-              <Link
-                href="/response"
-                className="block text-center w-full py-2.5 px-3 bg-[#FAF8F3] hover:bg-[#F3EEE5] text-[#18324A] font-mono text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
-              >
-                Open Response Intelligence →
-              </Link>
-            </div>
-          </div>
-        </aside>
 
-        {/* Hero Map & Live Updates Area */}
-        <main className="flex-1 flex flex-col min-w-0 h-[600px] lg:h-full overflow-hidden">
-          {/* Large Hero Map */}
-          <div className="flex-1 relative overflow-hidden">
-            <MainMapContainer
-              activeRoute={activeRoute}
-            />
-          </div>
+        </div>
 
-          {/* Bottom Live Updates Section */}
-          <div className="shrink-0">
-            <LiveUpdatesFeed
-              title="LIVE GROUND &amp; TELEMETRY UPDATES"
-              maxItems={3}
-            />
-          </div>
-        </main>
-      </div>
+        {/* Live Updates Floating Bottom */}
+        <div className="absolute bottom-6 right-6 z-10 w-[400px] pointer-events-auto animate-slide-up" style={{ animationDelay: '0.4s' }}>
+          <LiveUpdatesFeed title="Live Ground Updates" maxItems={3} />
+        </div>
+      </main>
 
-      {/* Incident Modal */}
       <ReportIncidentModal
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
@@ -106,3 +65,4 @@ export default function MainPage() {
     </div>
   );
 }
+

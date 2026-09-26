@@ -14,62 +14,64 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs select-none">
-      <div className="bg-[#FAF8F3] border-2 border-[#18324A] max-w-lg w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-md select-none transition-all duration-300">
+      <div className="bg-canvas border border-hairline max-w-lg w-full rounded-xl shadow-lg overflow-hidden animate-slide-up">
         {/* Header */}
-        <div className="bg-[#18324A] text-[#FAF8F3] px-5 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 bg-[#B66F55]" />
-            <h3 className="font-serif font-bold text-base tracking-normal">
-              Ground Reporting Module
-            </h3>
-          </div>
+        <div className="bg-canvas text-ink px-6 py-4 flex items-center justify-between border-b border-hairline">
+          <h3 className="font-semibold text-[17px] tracking-[-0.374px]">
+            Report an Incident
+          </h3>
           <button
             onClick={onClose}
-            className="text-[#8FAFC2] hover:text-[#FAF8F3] text-lg font-mono font-bold leading-none cursor-pointer"
+            className="text-ink-muted-48 hover:text-ink transition-colors"
             aria-label="Close modal"
           >
-            ✕
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
           </button>
         </div>
 
         {/* Prototype notice badge */}
-        <div className="bg-[#F3EEE5] border-b border-[#D9D0C4] px-5 py-2 flex items-center justify-between text-xs font-mono text-[#654536]">
-          <span className="font-bold uppercase tracking-wider">
+        <div className="bg-surface-pearl px-6 py-3 flex flex-col gap-1 border-b border-hairline">
+          <span className="text-[12px] font-semibold tracking-[-0.12px] text-ink uppercase">
             Prototype Interface
           </span>
-          <span>Reporting backend will be connected in Phase 5</span>
+          <span className="text-[12px] text-ink-muted-80 tracking-[-0.12px]">
+            Reporting backend will be connected in Phase 5
+          </span>
         </div>
 
         {/* Modal content */}
-        <div className="p-5 space-y-4">
-          <p className="text-xs text-[#273038] font-sans leading-relaxed">
+        <div className="p-6 space-y-5">
+          <p className="text-[14px] text-ink-muted-80 leading-[1.43] tracking-[-0.224px]">
             Report flooding, blocked roads, infrastructure damage, or people requiring assistance.
             Ground observations undergo multi-source verification and feed directly into the operational priority queue.
           </p>
 
-          <form onSubmit={(e) => { e.preventDefault(); onClose(); }} className="space-y-3">
+          <form onSubmit={(e) => { e.preventDefault(); onClose(); }} className="space-y-4">
             {/* Location */}
             <div>
-              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#68747B] mb-1">
-                Incident Location (Pincode / Landmark / GPS)
+              <label className="block text-[12px] font-normal tracking-[-0.12px] text-ink-muted-48 mb-1.5 uppercase">
+                Incident Location
               </label>
               <input
                 type="text"
                 placeholder="e.g. Pirangut Mutha River Causeway, Mulshi"
                 disabled
-                className="w-full bg-[#F3EEE5]/50 border border-[#D9D0C4] px-3 py-2 text-xs font-sans text-[#273038] cursor-not-allowed opacity-80"
+                className="w-full bg-surface-pearl border border-hairline rounded-sm px-3 py-2.5 text-[14px] text-ink cursor-not-allowed opacity-70"
               />
             </div>
 
             {/* Incident Type */}
             <div>
-              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#68747B] mb-1">
-                Incident Classification
+              <label className="block text-[12px] font-normal tracking-[-0.12px] text-ink-muted-48 mb-1.5 uppercase">
+                Classification
               </label>
               <select
                 disabled
-                className="w-full bg-[#F3EEE5]/50 border border-[#D9D0C4] px-3 py-2 text-xs font-sans text-[#273038] cursor-not-allowed opacity-80"
+                className="w-full bg-surface-pearl border border-hairline rounded-sm px-3 py-2.5 text-[14px] text-ink cursor-not-allowed opacity-70"
               >
                 <option>Bridge / Culvert Overflow</option>
                 <option>Road Blockage / Landslide</option>
@@ -81,52 +83,47 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
 
             {/* Description */}
             <div>
-              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#68747B] mb-1">
-                Field Observation Description
+              <label className="block text-[12px] font-normal tracking-[-0.12px] text-ink-muted-48 mb-1.5 uppercase">
+                Description
               </label>
               <textarea
                 rows={3}
-                placeholder="Describe water depth, current speed, visible structural damage, or number of stranded individuals..."
+                placeholder="Describe water depth, current speed, visible structural damage..."
                 disabled
-                className="w-full bg-[#F3EEE5]/50 border border-[#D9D0C4] px-3 py-2 text-xs font-sans text-[#273038] cursor-not-allowed opacity-80 resize-none"
+                className="w-full bg-surface-pearl border border-hairline rounded-sm px-3 py-2.5 text-[14px] text-ink cursor-not-allowed opacity-70 resize-none"
               />
             </div>
 
             {/* Photo Attachment (Visual mockup) */}
             <div>
-              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#68747B] mb-1">
-                Geotagged Photo Evidence
+              <label className="block text-[12px] font-normal tracking-[-0.12px] text-ink-muted-48 mb-1.5 uppercase">
+                Photo Evidence
               </label>
-              <div className="border border-dashed border-[#D9D0C4] bg-[#FAF8F3] p-3 text-center cursor-not-allowed opacity-75">
-                <span className="text-xs text-[#68747B] font-mono block">
-                  Drag &amp; drop field photos or click to browse
+              <div className="border border-dashed border-hairline bg-surface-pearl rounded-sm p-4 text-center cursor-not-allowed opacity-70">
+                <span className="text-[14px] text-ink block mb-1">
+                  Drag & drop photos or browse
                 </span>
-                <span className="text-[10px] text-[#8FAFC2] block mt-0.5">
+                <span className="text-[12px] text-ink-muted-80 block">
                   GPS EXIF metadata will be validated automatically
                 </span>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="pt-2 flex items-center justify-between border-t border-[#D9D0C4]">
-              <span className="text-[11px] font-mono text-[#8A624E]">
-                Prototype — reporting will be connected later.
-              </span>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-3 py-1.5 border border-[#D9D0C4] text-xs font-mono text-[#654536] hover:bg-[#F3EEE5] cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-[#B66F55] hover:bg-[#8A624E] text-[#FAF8F3] text-xs font-mono font-bold uppercase tracking-wider cursor-pointer"
-                >
-                  Submit Report
-                </button>
-              </div>
+            <div className="pt-4 flex items-center justify-end gap-3 border-t border-divider-soft">
+              <button
+                type="button"
+                onClick={onClose}
+                className="bg-surface-pearl border border-hairline text-ink-muted-80 text-[14px] font-normal rounded-pill px-[18px] py-[10px] hover:scale-95 transition-transform"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="bg-primary text-on-primary text-[14px] font-normal rounded-pill px-[22px] py-[10px] hover:scale-95 transition-transform shadow-sm"
+              >
+                Submit Report
+              </button>
             </div>
           </form>
         </div>

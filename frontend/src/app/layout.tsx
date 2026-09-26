@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 
+const inter = Inter({ subsets: ['latin'] });
+
 export const metadata: Metadata = {
-  title: 'Disaster-Response Intelligence Console | Team CafeTerminal',
-  description:
-    'Tactical flood disaster response and environmental hazard intelligence platform for Pune District, Maharashtra. PCCOE HackMatrix 5.0.',
+  title: 'SAHAYAK | Intelligence Platform',
+  description: 'Hazard-to-Settlement-to-Road Intelligence Platform.',
 };
 
 export default function RootLayout({
@@ -14,7 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen flex flex-col bg-[#FAF8F3] text-[#273038]">
+      <body className={`${inter.className} min-h-screen flex flex-col bg-canvas text-ink font-sans`}>
         {children}
       </body>
     </html>

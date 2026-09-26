@@ -15,25 +15,19 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
     <div
       role="status"
       aria-live="polite"
-      className={`border border-[#D9D0C4] bg-[#F3EEE5]/80 p-5 flex flex-col items-center justify-center text-center space-y-3 select-none ${className}`}
+      className={`bg-surface-pearl rounded-xl border border-hairline p-8 flex flex-col items-center justify-center text-center space-y-4 select-none shadow-sm ${className}`}
     >
-      {/* Editorial Reticle Pulsing Animation */}
-      <div className="relative w-10 h-10 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#18324A] border-t-transparent animate-spin" />
-        <div className="absolute w-2 h-2 bg-[#B66F55]" />
+      <div className="relative w-12 h-12 flex items-center justify-center mb-2">
+        <div className="w-8 h-8 border-[3px] border-ink-muted-48 border-t-transparent rounded-full animate-spin" />
       </div>
 
-      <div className="space-y-1">
-        <div className="font-serif font-bold text-xs uppercase tracking-wider text-[#18324A]">
+      <div className="space-y-2 max-w-sm">
+        <div className="text-[17px] font-semibold text-ink tracking-[-0.374px]">
           {message}
         </div>
-        <p className="font-sans text-[11px] text-[#654536] max-w-xs leading-snug">
+        <p className="text-[14px] font-normal text-ink-muted-80 leading-[1.43] tracking-[-0.224px]">
           {detail}
         </p>
-      </div>
-
-      <div className="font-mono text-[10px] text-[#68747B] border-t border-[#D9D0C4] pt-2">
-        Prototype local synchronization · no backend delay
       </div>
     </div>
   );

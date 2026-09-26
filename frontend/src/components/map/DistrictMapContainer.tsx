@@ -16,10 +16,10 @@ const DynamicDistrictMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="w-full h-full flex-1 flex flex-col bg-[#FAF8F3] bg-carto-grid items-center justify-center p-6 min-h-[380px]">
-        <div className="border border-[#D9D0C4] bg-[#FAF8F3] p-4 text-center">
-          <div className="w-3 h-3 bg-[#B66F55] mx-auto mb-2 animate-pulse" />
-          <div className="font-serif font-bold text-xs text-[#18324A]">
+      <div className="w-full h-full flex-1 flex flex-col bg-canvas items-center justify-center p-6 min-h-[380px]">
+        <div className="border border-hairline bg-surface-pearl p-6 rounded-lg text-center shadow-sm">
+          <div className="w-4 h-4 bg-primary rounded-full mx-auto mb-3 animate-pulse" />
+          <div className="font-semibold text-[14px] text-ink tracking-[-0.16px]">
             Focusing Tactical Sector Map...
           </div>
         </div>

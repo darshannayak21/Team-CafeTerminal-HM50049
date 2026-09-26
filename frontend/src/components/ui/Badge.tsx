@@ -23,28 +23,28 @@ interface BadgeProps {
 
 const variantStyles: Record<BadgeVariant, string> = {
   // Risk levels
-  CRITICAL: 'bg-[#F3EEE5] text-[#B66F55] border-[#B66F55] font-semibold',
-  HIGH: 'bg-[#F3EEE5] text-[#8A624E] border-[#8A624E] font-semibold',
-  MODERATE: 'bg-[#FAF8F3] text-[#557A95] border-[#557A95]',
-  LOW: 'bg-[#FAF8F3] text-[#18324A] border-[#8FAFC2]',
+  CRITICAL: 'bg-[#ff3b30] text-white font-medium',
+  HIGH: 'bg-[#ff9500] text-white font-medium',
+  MODERATE: 'bg-[#ffcc00] text-ink font-medium',
+  LOW: 'bg-surface-pearl border-hairline text-ink',
 
   // Access status
-  ACCESSIBLE: 'bg-[#FAF8F3] text-[#18324A] border-[#8FAFC2]',
-  AT_RISK: 'bg-[#F3EEE5] text-[#8A624E] border-[#8A624E]',
-  ISOLATED: 'bg-[#F3EEE5] text-[#B66F55] border-[#B66F55] font-semibold',
+  ACCESSIBLE: 'bg-surface-pearl border-hairline text-ink',
+  AT_RISK: 'bg-[#ff9500] text-white font-medium',
+  ISOLATED: 'bg-[#ff3b30] text-white font-medium',
 
   // Response Urgency (Milestone 4)
-  IMMEDIATE: 'bg-[#F3EEE5] text-[#B66F55] border-[#B66F55] font-bold tracking-wider',
-  ELEVATED: 'bg-[#F3EEE5] text-[#8A624E] border-[#8A624E] font-medium tracking-wider',
-  ROUTINE: 'bg-[#FAF8F3] text-[#557A95] border-[#557A95] tracking-wider',
+  IMMEDIATE: 'bg-[#ff3b30] text-white font-semibold',
+  ELEVATED: 'bg-[#ff9500] text-white font-medium',
+  ROUTINE: 'bg-surface-pearl border-hairline text-ink-muted-80',
 
   // Historical / Replay state
-  REPLAY: 'bg-[#F3EEE5] text-[#654536] border-[#654536] font-mono tracking-wider font-semibold',
+  REPLAY: 'bg-canvas-parchment text-ink-muted-80 border border-hairline',
 
   // System & Context badges
-  PROTOTYPE: 'bg-[#F3EEE5] text-[#654536] border-[#8A624E] border-dashed font-mono tracking-wider',
-  DEFAULT: 'bg-[#FAF8F3] text-[#273038] border-[#D9D0C4]',
-  MUTED: 'bg-[#F3EEE5] text-[#68747B] border-[#D9D0C4]',
+  PROTOTYPE: 'bg-canvas-parchment text-ink-muted-48 border border-hairline border-dashed',
+  DEFAULT: 'bg-surface-pearl text-ink border-hairline',
+  MUTED: 'bg-canvas text-ink-muted-48 border-hairline',
 };
 
 export const Badge: React.FC<BadgeProps> = ({
@@ -58,7 +58,7 @@ export const Badge: React.FC<BadgeProps> = ({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 border uppercase tracking-wide transition-none select-none font-mono',
+        'inline-flex items-center gap-1 border uppercase tracking-wide rounded-sm select-none',
         sizeClasses,
         variantStyles[variant] || variantStyles.DEFAULT,
         className

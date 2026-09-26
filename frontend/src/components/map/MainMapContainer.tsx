@@ -9,6 +9,7 @@ interface MainMapContainerProps {
   selectedTalukaId?: string | null;
   onSelectTaluka?: (id: string) => void;
   onSelectIncident?: (incident: IncidentMarkerData) => void;
+  showElevation?: boolean;
 }
 
 const DynamicMainMap = dynamic(
@@ -16,14 +17,14 @@ const DynamicMainMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="w-full h-full flex-1 flex flex-col bg-[#FAF8F3] bg-carto-grid items-center justify-center p-6 min-h-[480px]">
-        <div className="border border-[#D9D0C4] bg-[#FAF8F3] p-5 max-w-sm w-full text-center">
-          <div className="w-3 h-3 bg-[#18324A] mx-auto mb-3 animate-pulse" />
-          <h3 className="font-serif font-bold text-sm text-[#18324A] mb-1">
-            Loading Disaster Cartography
+      <div className="w-full h-full flex-1 flex flex-col bg-canvas-parchment items-center justify-center p-6 min-h-[480px]">
+        <div className="frosted-glass rounded-xl border border-hairline p-8 max-w-sm w-full text-center shadow-sm">
+          <div className="w-4 h-4 bg-primary mx-auto mb-4 animate-pulse rounded-full" />
+          <h3 className="text-[17px] font-semibold tracking-[-0.374px] text-ink mb-1.5">
+            Loading Map
           </h3>
-          <p className="text-xs font-sans text-[#68747B]">
-            Initializing Pune District spatial layers and route network...
+          <p className="text-[14px] text-ink-muted-80 tracking-[-0.224px]">
+            Initializing spatial layers and route network...
           </p>
         </div>
       </div>
