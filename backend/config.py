@@ -20,6 +20,16 @@ class Config:
     PORT = int(os.environ.get("PORT", 5000))
     HOST = os.environ.get("HOST", "0.0.0.0")
 
+    # Local Storage & Database Configurations
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
+    UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.path.join(BASE_DIR, "uploads"))
+    DATABASE_PATH = os.environ.get(
+        "DATABASE_PATH", os.path.join(DATA_DIR, "rainguard.db")
+    )
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max upload size
+    ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "heic", "gif"}
+
     # Open-Meteo Weather Service Configuration
     OPEN_METEO_BASE_URL = os.environ.get(
         "OPEN_METEO_BASE_URL", "https://api.open-meteo.com/v1/forecast"

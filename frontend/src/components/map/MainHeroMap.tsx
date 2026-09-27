@@ -34,6 +34,8 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
   
   const incidentLayerRef = useRef<L.LayerGroup | null>(null);
   const polygonLayerRef = useRef<L.LayerGroup | null>(null);
+  const groundReportsLayerRef = useRef<L.LayerGroup | null>(null);
+  const newsLayerRef = useRef<L.LayerGroup | null>(null);
   
   const wardsLayerRef = useRef<L.Layer | null>(null);
   const worldPopLayerRef = useRef<L.Layer | null>(null);
@@ -68,13 +70,18 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
     L.control.zoom({ position: 'topright' }).addTo(map);
     L.control.scale({ position: 'bottomleft', metric: true, imperial: false }).addTo(map);
 
-    // Initialize polygon, route and incident layers here...
+    // Initialize polygon, route, incident, ground reports and news layers
     const polygonLayer = L.layerGroup().addTo(map);
     const routeLayer = L.layerGroup().addTo(map);
     const incidentLayer = L.layerGroup().addTo(map);
+    const groundReportsLayer = L.layerGroup().addTo(map);
+    const newsLayer = L.layerGroup().addTo(map);
+
     polygonLayerRef.current = polygonLayer;
     routeLayerRef.current = routeLayer;
     incidentLayerRef.current = incidentLayer;
+    groundReportsLayerRef.current = groundReportsLayer;
+    newsLayerRef.current = newsLayer;
 
     mapInstanceRef.current = map;
 
@@ -103,52 +110,183 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
     elevationLayerRef.current = L.layerGroup();
     stationsLayerRef.current = L.layerGroup();
 
-    // Render Navale Bridge incident mock
-    const navaleIcon = L.divIcon({
-      className: '',
-      html: `
-        <div class="relative flex items-center justify-center w-14 h-14">
-          <div class="absolute inset-0 bg-[#ff3b30] rounded-full opacity-50 animate-ping"></div>
-          <div class="relative flex items-center justify-center w-8 h-8 bg-white border-[3px] border-[#ff3b30] rounded-full shadow-[0_4px_12px_rgba(255,59,48,0.5)]">
-            <span class="text-[#ff3b30] font-black text-[22px] leading-none mt-[2px]">!</span>
-          </div>
-        </div>
-      `,
-      iconSize: [56, 56],
-      iconAnchor: [28, 28],
-      popupAnchor: [0, -28],
-    });
-
-    const navaleMarker = L.marker([18.45999, 73.82313], { icon: navaleIcon }).addTo(incidentLayer);
-    
-    const popupHtml = `
-      <div style="font-family: var(--font-sans); min-width: 220px; padding: 8px; color: var(--color-ink);">
-        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #ff3b30; margin-bottom: 4px; letter-spacing: -0.1px; display: flex; align-items: center; gap: 4px;">
-          <span style="display:inline-block; width:6px; height:6px; background:#ff3b30; border-radius:50%; animation: pulse 2s infinite;"></span>
-          LIVE ALERT
-        </div>
-        <div style="font-size: 15px; font-weight: 600; color: var(--color-ink); margin-bottom: 2px; letter-spacing: -0.2px;">
-          Navale Bridge Collapse
-        </div>
-        <div style="font-size: 13px; color: var(--color-ink-muted-80); margin-bottom: 8px;">
-          NH48 Highway
-        </div>
-        <div style="font-size: 14px; line-height: 1.4; border-top: 1px solid var(--color-hairline); padding-top: 8px; margin-bottom: 8px;">
-          Major structural failure reported on Navale Bridge. Road blocked in both directions. Avoid area.
-        </div>
-        <div style="font-size: 11px; color: var(--color-ink-muted-48); background: var(--color-surface-pearl); padding: 4px 8px; border-radius: 4px; display: inline-block;">
-          Source: Punekar News
-        </div>
-      </div>
-    `;
-
-    navaleMarker.bindPopup(popupHtml);
-
     return () => {
       map.remove();
       mapInstanceRef.current = null;
     };
   }, [onSelectIncident]);
+
+  // Live Ground Reports & News Polling
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchReportsAndNews = async () => {
+      try {
+        // 1. Fetch Live Ground Reports
+        const reportsRes = await fetch('http://localhost:5000/api/reports');
+        if (reportsRes.ok && isMounted) {
+          const resData = await reportsRes.json();
+          const reports = resData.reports || resData.data || [];
+          
+          if (groundReportsLayerRef.current) {
+            groundReportsLayerRef.current.clearLayers();
+            
+            reports.forEach((report: any) => {
+              if (typeof report.latitude !== 'number' || typeof report.longitude !== 'number') return;
+              
+              const reportIcon = L.divIcon({
+                className: '',
+                html: `
+                  <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; cursor: pointer;">
+                    <div style="position: absolute; inset: 0; background: #2563eb; border-radius: 50%; opacity: 0.35; animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+                    <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: #0f172a; border: 2px solid #60a5fa; border-radius: 50%; box-shadow: 0 4px 12px rgba(37,99,235,0.6); color: #60a5fa; font-size: 15px;">
+                      📍
+                    </div>
+                  </div>
+                `,
+                iconSize: [44, 44],
+                iconAnchor: [22, 22],
+                popupAnchor: [0, -22],
+              });
+
+              const marker = L.marker([report.latitude, report.longitude], { icon: reportIcon });
+              
+              const imageUrl = report.image_url 
+                ? (report.image_url.startsWith('http') ? report.image_url : `http://localhost:5000${report.image_url}`) 
+                : null;
+              
+              const formattedTime = new Date(report.timestamp).toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              });
+
+              const popupHtml = `
+                <div style="font-family: system-ui, -apple-system, sans-serif; min-width: 250px; max-width: 320px; padding: 8px; color: #0f172a;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; gap: 4px;">
+                    <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #16a34a; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                      <span style="display:inline-block; width:6px; height:6px; background:#16a34a; border-radius:50%;"></span>
+                      LIVE GROUND REPORT
+                    </span>
+                    <span style="font-size: 10px; font-weight: 700; color: #d97706; background: #fffbeb; border: 1px solid #fde68a; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">
+                      ${report.status || 'PENDING'}
+                    </span>
+                  </div>
+
+                  <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 2px;">
+                    ${report.incident_type}
+                  </div>
+
+                  <div style="font-size: 11px; color: #64748b; margin-bottom: 8px;">
+                    ${report.location_name ? `${report.location_name} · ` : ''}${report.latitude.toFixed(5)}°N, ${report.longitude.toFixed(5)}°E
+                    ${report.accuracy ? ` (±${Math.round(report.accuracy)}m)` : ''}
+                  </div>
+
+                  ${report.description ? `
+                    <div style="font-size: 13px; color: #334155; line-height: 1.4; background: #f8fafc; padding: 8px 10px; border-radius: 6px; border: 1px solid #e2e8f0; margin-bottom: 8px;">
+                      ${report.description}
+                    </div>
+                  ` : ''}
+
+                  ${imageUrl ? `
+                    <div style="margin-bottom: 8px; border-radius: 6px; overflow: hidden; border: 1px solid #cbd5e1; background: #000;">
+                      <img src="${imageUrl}" alt="Field Evidence" style="width: 100%; height: 130px; object-fit: cover; display: block;" onerror="this.style.display='none'" />
+                    </div>
+                  ` : ''}
+
+                  <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 6px;">
+                    <span>Source: <strong style="color: #0f172a;">Ground Report</strong></span>
+                    <span>${formattedTime}</span>
+                  </div>
+                  <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; font-family: monospace;">
+                    ID: ${report.id}
+                  </div>
+                </div>
+              `;
+
+              marker.bindPopup(popupHtml, { maxWidth: 340 });
+              marker.addTo(groundReportsLayerRef.current!);
+            });
+          }
+        }
+
+        // 2. Fetch News Item (Navale Bridge Traffic Disruption)
+        const newsRes = await fetch('http://localhost:5000/api/news');
+        if (newsRes.ok && isMounted) {
+          const newsData = await newsRes.json();
+          const newsList = newsData.news || newsData.data || [];
+          
+          if (newsLayerRef.current) {
+            newsLayerRef.current.clearLayers();
+
+            newsList.forEach((item: any) => {
+              if (typeof item.latitude !== 'number' || typeof item.longitude !== 'number') return;
+
+              const newsIcon = L.divIcon({
+                className: '',
+                html: `
+                  <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; cursor: pointer;">
+                    <div style="position: absolute; inset: 0; background: #3b82f6; border-radius: 50%; opacity: 0.3; animation: ping 3s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+                    <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: #ffffff; border: 2.5px solid #2563eb; border-radius: 50%; box-shadow: 0 4px 12px rgba(37,99,235,0.4); color: #2563eb; font-size: 14px;">
+                      📰
+                    </div>
+                  </div>
+                `,
+                iconSize: [44, 44],
+                iconAnchor: [22, 22],
+                popupAnchor: [0, -22],
+              });
+
+              const marker = L.marker([item.latitude, item.longitude], { icon: newsIcon });
+              
+              const popupHtml = `
+                <div style="font-family: system-ui, -apple-system, sans-serif; min-width: 250px; max-width: 320px; padding: 8px; color: #0f172a;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="font-size: 10px; font-weight: 800; color: #1e40af; background: #dbeafe; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">
+                      NEWS
+                    </span>
+                    <span style="font-size: 10px; color: #64748b;">
+                      ${new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+
+                  <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">
+                    ${item.title}
+                  </div>
+
+                  <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">
+                    ${item.location_name || 'Pune District'}
+                  </div>
+
+                  <div style="font-size: 13px; color: #334155; line-height: 1.4; border-top: 1px solid #e2e8f0; padding-top: 8px; margin-bottom: 8px;">
+                    ${item.description}
+                  </div>
+
+                  <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #64748b; background: #f8fafc; padding: 4px 8px; border-radius: 4px;">
+                    <span>Source: <strong>${item.source || 'News'}</strong></span>
+                  </div>
+                </div>
+              `;
+
+              marker.bindPopup(popupHtml, { maxWidth: 340 });
+              marker.addTo(newsLayerRef.current!);
+            });
+          }
+        }
+      } catch (err) {
+        // Backend temporarily offline during restart or startup
+      }
+    };
+
+    fetchReportsAndNews();
+    const intervalId = setInterval(fetchReportsAndNews, 4000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, []);
 
   // Handle Focus Location Change
   useEffect(() => {

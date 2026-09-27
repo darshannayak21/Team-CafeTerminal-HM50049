@@ -63,3 +63,34 @@ export interface SimulatedUpdate {
   location: string;
   talukaId?: string;
 }
+
+export interface GroundReport {
+  id: string;
+  incident_type: string;
+  description: string;
+  image_url?: string | null;
+  latitude: number;
+  longitude: number;
+  accuracy?: number | null;
+  location_name?: string | null;
+  timestamp: string;
+  source: string;
+  status: 'pending' | 'verified' | 'rejected' | string;
+  created_at: string;
+}
+
+export interface NewsReport {
+  id: string;
+  title: string;
+  description: string;
+  source: string;
+  category: string;
+  location_name?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  timestamp: string;
+  is_simulated: boolean | number;
+  badge: string;
+  created_at: string;
+}
+

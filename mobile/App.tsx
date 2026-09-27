@@ -67,7 +67,7 @@ export default function App() {
     try {
       setSubmitting(true);
 
-      const savedReport = await reportService.saveLocalReport({
+      const savedReport = await reportService.submitReportToBackend({
         type: incidentType,
         description,
         imageUri: photoUri,
@@ -79,9 +79,13 @@ export default function App() {
 
       setSubmittedReport(savedReport);
       setShowSuccessModal(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Submission failed:", err);
-      Alert.alert("Submission Error", "Could not record report. Please try again.");
+      Alert.alert(
+        "Transmission Failed",
+        err.message || "Could not reach RainGuard backend. Please verify your connection and try again.",
+        [{ text: "OK" }]
+      );
     } finally {
       setSubmitting(false);
     }

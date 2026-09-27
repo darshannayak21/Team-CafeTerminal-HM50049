@@ -175,20 +175,58 @@ export const DistrictIntelligence: React.FC<DistrictIntelligenceProps> = ({
         <div className="border border-hairline rounded-xl bg-canvas p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="text-[17px] font-semibold tracking-[-0.374px] text-ink">
-              Evidence Supporting Priority
+              Multi-Source Evidence Matrix
             </div>
             <span className="text-[12px] font-normal tracking-[-0.12px] text-primary bg-primary/10 px-3 py-1 rounded-pill">
-              {district.evidence.length} Indicators Validated
+              Validated Telemetry & Evidence
             </span>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 mb-4">
             {district.evidence.map((item, idx) => (
               <div key={idx} className="flex items-start gap-3 text-[14px] leading-[1.43] tracking-[-0.224px] text-ink">
                 <span className="text-primary font-semibold">✓</span>
                 <span>{item}</span>
               </div>
             ))}
+          </div>
+
+          {/* Citizen Ground Reports & News Telemetry Layer */}
+          <div className="pt-4 border-t border-hairline space-y-2.5">
+            <div className="text-[12px] font-bold uppercase tracking-wider text-ink-muted-48">
+              Supplemental Real-Time Streams
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="p-3 rounded-lg border border-blue-200 bg-blue-50/50">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[12px] font-bold text-blue-900 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                    Ground Incident Reports
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                    Live Stream
+                  </span>
+                </div>
+                <p className="text-[12px] text-blue-950 leading-relaxed">
+                  Real-time crowdsourced citizen observations from RainGuard Mobile App. Status marked as <em>Pending Verification</em> until field dispatch confirmation.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-lg border border-slate-200 bg-slate-50/80">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[12px] font-bold text-slate-900">
+                    Traffic & News Alerts
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">
+                    News
+                  </span>
+                </div>
+                <p className="text-[12px] text-slate-700 leading-relaxed">
+                  Traffic and infrastructure disruption reports aggregated from official news and transit advisories.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 

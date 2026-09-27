@@ -6,6 +6,9 @@ from backend.config import Config, get_config
 from backend.routes.health import health_bp
 from backend.routes.elevation import elevation_bp
 from backend.routes.rainfall import rainfall_bp
+from backend.routes.reports import reports_bp
+from backend.routes.news import news_bp
+from backend.services.db import init_db
 
 
 def create_app(config_class: type[Config] | None = None) -> Flask:
@@ -26,10 +29,16 @@ def create_app(config_class: type[Config] | None = None) -> Flask:
 
     CORS(app)
 
+    # Initialize SQLite database & mock tables
+    with app.app_context():
+        init_db()
+
     # Register routes / blueprints
     app.register_blueprint(health_bp)
     app.register_blueprint(elevation_bp)
     app.register_blueprint(rainfall_bp)
+    app.register_blueprint(reports_bp)
+    app.register_blueprint(news_bp)
 
     return app
 
