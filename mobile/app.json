@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "RainGuard Ground Reporter",
+    "slug": "rainguard-ground-reporter",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#0F172A",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "RainGuard requires access to your location to attach accurate GPS coordinates to disaster incident reports.",
+        "NSCameraUsageDescription": "RainGuard requires access to your camera to capture real-time incident photos from the ground.",
+        "NSPhotoLibraryUsageDescription": "RainGuard requires access to your photo library to select incident evidence photos."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0F172A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "RainGuard requires access to your location to attach accurate GPS coordinates to disaster incident reports."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "RainGuard requires access to your photos to select incident evidence images.",
+          "cameraPermission": "RainGuard requires access to your camera to take real-time disaster incident photos."
+        }
+      ]
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
