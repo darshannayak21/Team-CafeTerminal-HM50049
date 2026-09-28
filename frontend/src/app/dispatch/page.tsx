@@ -30,7 +30,13 @@ export default function ResponsePage() {
 
         {/* Right Column: Selected District Intelligence (65% on desktop) */}
         <main className="w-full lg:w-[65%] flex-1 h-full overflow-hidden flex flex-col bg-canvas-parchment">
-          <DistrictIntelligence district={selectedDistrict} />
+          {selectedDistrict ? (
+            <DistrictIntelligence district={selectedDistrict} />
+          ) : (
+            <div className="flex items-center justify-center h-full w-full">
+              <p className="text-muted text-lg">No active priority areas requiring attention.</p>
+            </div>
+          )}
         </main>
       </div>
     </div>
