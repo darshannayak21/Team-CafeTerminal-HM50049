@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { RouteOption, IncidentMarkerData } from '@/types/prototype';
 
 interface MainMapContainerProps {
-  activeRoute: RouteOption | null;
+  activeRoutes?: any[];
   selectedTalukaId?: string | null;
   onSelectTaluka?: (id: string) => void;
   onSelectIncident?: (incident: IncidentMarkerData) => void;

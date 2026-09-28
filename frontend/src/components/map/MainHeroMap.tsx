@@ -8,7 +8,7 @@ import { PROTOTYPE_DISTRICTS, PROTOTYPE_INCIDENTS } from '@/data/prototype';
 import { getIncidentMarkerSvg } from './gisIcons';
 
 interface MainHeroMapProps {
-  activeRoute: RouteOption | null;
+  activeRoutes?: any[];
   selectedTalukaId?: string | null;
   onSelectTaluka?: (id: string) => void;
   onSelectIncident?: (incident: IncidentMarkerData) => void;
@@ -17,7 +17,7 @@ interface MainHeroMapProps {
 }
 
 export const MainHeroMap: React.FC<MainHeroMapProps> = ({
-  activeRoute,
+  activeRoutes = [],
   onSelectIncident,
   showElevation,
   focusLocation,
@@ -306,54 +306,62 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
 
     routeLayer.clearLayers();
 
-    if (!activeRoute) return;
+    if (!activeRoutes || activeRoutes.length === 0) return;
 
-    // Render accessible route line
-    const routePolyline = L.polyline(activeRoute.waypoints, {
-      color: '#18324A',
-      weight: 5,
-      opacity: 0.9,
-      lineCap: 'round',
-      lineJoin: 'round',
-      dashArray: undefined,
-    }).addTo(routeLayer);
+    const allBounds = L.latLngBounds([]);
 
-    // Glowing border underneath
-    L.polyline(activeRoute.waypoints, {
-      color: '#557A95',
-      weight: 9,
-      opacity: 0.35,
-    }).addTo(routeLayer);
+    activeRoutes.forEach(activeRoute => {
+      // Render accessible route line
+      const routePolyline = L.polyline(activeRoute.waypoints, {
+        color: activeRoute.color || '#dc2626', // Team Color
+        weight: 5,
+        opacity: 0.9,
+        lineCap: 'round',
+        lineJoin: 'round',
+        dashArray: undefined,
+      }).addTo(routeLayer);
 
-    // Origin marker
-    const originIcon = L.divIcon({
-      className: 'route-origin-marker',
-      html: `
-        <div style="width: 24px; height: 24px; background: var(--color-primary); border: 2px solid #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 12px; font-weight: 600; font-family: var(--font-sans); box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-          A
-        </div>
-      `,
-      iconSize: [24, 24],
-      iconAnchor: [12, 12],
+      allBounds.extend(routePolyline.getBounds());
+
+      // Glowing border underneath
+      L.polyline(activeRoute.waypoints, {
+        color: activeRoute.color || '#991b1b', // Team Color
+        weight: 9,
+        opacity: 0.35,
+      }).addTo(routeLayer);
+
+      // Origin marker
+      const originIcon = L.divIcon({
+        className: 'route-origin-marker',
+        html: `
+          <div style="width: 24px; height: 24px; background: ${activeRoute.color || 'var(--color-primary)'}; border: 2px solid #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 12px; font-weight: 600; font-family: var(--font-sans); box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+            A
+          </div>
+        `,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      });
+      L.marker(activeRoute.waypoints[0], { icon: originIcon }).addTo(routeLayer);
+
+      // Destination marker
+      const destIcon = L.divIcon({
+        className: 'route-dest-marker',
+        html: `
+          <div style="width: 24px; height: 24px; background: #1d1d1f; border: 2px solid #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 12px; font-weight: 600; font-family: var(--font-sans); box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+            B
+          </div>
+        `,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+      });
+      L.marker(activeRoute.waypoints[activeRoute.waypoints.length - 1], { icon: destIcon }).addTo(routeLayer);
     });
-    L.marker(activeRoute.waypoints[0], { icon: originIcon }).addTo(routeLayer);
-
-    // Destination marker
-    const destIcon = L.divIcon({
-      className: 'route-dest-marker',
-      html: `
-        <div style="width: 24px; height: 24px; background: #1d1d1f; border: 2px solid #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 12px; font-weight: 600; font-family: var(--font-sans); box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-          B
-        </div>
-      `,
-      iconSize: [24, 24],
-      iconAnchor: [12, 12],
-    });
-    L.marker(activeRoute.waypoints[activeRoute.waypoints.length - 1], { icon: destIcon }).addTo(routeLayer);
 
     // Zoom to route bounds
-    map.fitBounds(routePolyline.getBounds(), { padding: [50, 50], maxZoom: 13 });
-  }, [activeRoute]);
+    if (activeRoutes.length > 0) {
+      map.fitBounds(allBounds, { padding: [50, 50], maxZoom: 13 });
+    }
+  }, [activeRoutes]);
 
   // PMC Wards Layer
   useEffect(() => {
