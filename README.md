@@ -1,90 +1,173 @@
-# Team CafeTerminal — PCCOE HackMatrix 5.0
+# SAHAYAK: Hazard-to-Settlement-to-Road Intelligence Platform
 
 ## Overview
+Communities frequently receive flood or landslide warnings without knowing which roads are still usable or where help is needed first. SAHAYAK is a comprehensive intelligence platform that bridges this gap. It connects hazard warnings with affected settlements and road accessibility, utilizing environmental observations and real-time reports from people on the ground. This allows response teams to explain each alert transparently and prioritize their actions effectively.
 
-Team CafeTerminal's project for PCCOE HackMatrix 5.0 is a disaster-response intelligence platform designed to connect environmental hazard warnings with affected settlements and road network accessibility. By linking rainfall observations, terrain-derived flood susceptibility, settlement populations, and road vulnerabilities, the platform aims to help emergency responders prioritize timely intervention during severe flood events.
+## Problem Statement
+A generic warning without knowing which roads still work is not actionable. Existing systems answer "will it flood here", but fail to answer:
+* Which roads are still usable?
+* Which settlements need help first?
+* How confident are we in this warning, and what is the underlying evidence?
 
-## Current Project Status
+## Intelligence Layer & Core Algorithms
 
-**Repository foundation / initialization**
+Our platform relies on four highly calibrated mathematical layers to determine response priority:
 
-No application functionality or live services have been implemented at this stage. All components are being built incrementally.
+### 1. Hazard Scoring Engine
+We calculate hazard severity per grid cell (village level) by combining weather telemetry with topography:
+`hazard_score = w1(rainfall_intensity) + w2(cumulative_72h_rainfall) + w3(terrain_susceptibility) + w4(distance_to_known_flood_zone_inverse)`
+* **Terrain Susceptibility** is calculated using SRTM-derived slope, flow accumulation (for floods), and Bhuvan landslide classification (for the Western Ghats).
 
-## Round-1 Scope
+### 2. Settlement Impact Scorer
+A high-hazard, low-population hamlet ranks below a moderate-hazard, high-population village to ensure limited resources are triaged logically.
+`settlement_impact = hazard_score(village) * population(village)`
+* Population counts are actively mapped using Meta High-Resolution Population Density Maps and Bhuvan administrative boundaries.
 
-The Round-1 prototype focuses on establishing a functional vertical slice for a single district and primary hazard:
+### 3. Road-Closure Inference & Dynamic Routing
+Powered by a self-hosted OSRM instance over OpenStreetMap data for Maharashtra. A road segment is marked "at-risk" if:
+1. It intersects a grid cell above the hazard threshold, OR
+2. It crosses a known low-water crossing / historical flood zone, OR
+3. It has ≥2 independent crowd reports flagging it within the last N hours.
+At-risk segments receive routing-weight penalties. OSRM naturally reroutes around them, returning usable alternate paths rather than failing silently.
 
-- **Geographic Area:** Pune District, Maharashtra
-- **Primary Hazard:** Flooding
-- **Environmental Data:** Rainfall input (live/forecast or clearly labeled replayed historical data) and SRTM elevation/terrain data
-- **Hazard Scoring:** Initial composite flood-hazard scoring combining rainfall intensity, terrain susceptibility, and proximity to known flood zones
-- **Settlement Impact:** Boundary and population-weighted impact assessment for settlements across Pune District
-- **Road Accessibility:** First-pass road risk classification intersecting OpenStreetMap (OSM) road networks with hazard zones
-- **Response Prioritization:** Prioritized ranking of affected settlements factoring in impact and access isolation
-- **Responder Dashboard:** A map interface displaying hazard layers, affected settlements, road risk, and prioritization details
+### 4. Intelligent Priority Queue
+Responders see a dynamically ranked queue where final priority dictates action:
+`priority = settlement_impact * road_isolation_factor`
+* `road_isolation_factor` spikes when a settlement's *only* access routes are flagged as at-risk (i.e., genuinely cut off), not just when one of several roads is affected.
 
-## Planned System Flow
+### 5. Confidence & Evidence Engine
+Every alert carries a confidence score built transparently from its inputs. The system weighs base data source quality, adds weight for corroborating ground truth, and subtracts weight if inputs conflict (e.g., rain sensors conflict with ground reports). The UI explicitly surfaces the exact evidence stack (e.g., "72mm rain in 3h + SRTM low-lying zone + 2 ground reports").
 
-```text
-Environmental & Geospatial Data Ingestion (Rainfall, SRTM, OSM, Census/Boundaries)
-   ↓
-Data Normalization & Spatial Preprocessing
-   ↓
-Flood Hazard Calculation (Terrain susceptibility + Rainfall intensity)
-   ↓
-Settlement Impact Assessment (Population-weighted exposure)
-   ↓
-Road Network Risk Analysis (Intersection of access routes with hazard zones)
-   ↓
-Response Prioritization Scoring (Impact × Isolation factor)
-   ↓
-Flask REST API
-   ↓
-Interactive Map Dashboard (Leaflet / Web Interface)
+### 6. AI-Powered Triaging & Replay Harness
+Google Gemini API is utilized for report triage, alert explanation text, and generating the "why" narrative. The platform includes a built-in historical-event replay harness with labeled ground truth (e.g., 2019/2021 Pune floods). This provides hard, tested numbers on our **False Positive Rate** and **Route Validity Success Rate** under simulated disruptions.
+
+## System Architecture
+
+```mermaid
+graph TD
+    subgraph Data Ingestion Layer
+        W[Weather: AccuWeather / OpenWeather / Open-Meteo]
+        E[NASA SRTM & Bhuvan Landslide Atlas]
+        POP[Meta Population Grid & Bhuvan Boundaries]
+        RD[OSM Road Graph]
+    end
+
+    subgraph Ground Truth Layer
+        M[React Native Mobile App]
+        WA[WhatsApp & SMS Twilio Intake]
+        R[Citizen Reports: Photos & Location]
+        M --> R
+        WA --> R
+    end
+
+    subgraph Intelligence Engine
+        F[Flask Backend API]
+        DB[(Local Database)]
+        AI[Gemini Reasoning & Explanation]
+        RTE[OSRM Routing Engine]
+        
+        W --> F
+        E --> F
+        POP --> F
+        RD --> RTE
+        R --> F
+        F --> DB
+        F <--> AI
+        F <--> RTE
+    end
+
+    subgraph Response Dashboard
+        D[Next.js Web Frontend]
+        P[Priority Queue & Confidence Scores]
+        MAP[Live GIS Map with Overlays]
+        
+        F --> D
+        D --> P
+        D --> MAP
+    end
 ```
 
-## Initial Planned Technology Direction
+## Screenshots
 
-- **Backend:** Python / Flask
-- **Geospatial Processing:** GeoPandas / Shapely / Rasterio / GDAL
-- **Frontend:** React / Next.js
-- **Mapping Layer:** Leaflet (or MapLibre)
-- **Data Sources:** Open-Meteo, SRTM, OpenStreetMap, Census/LGD/WorldPop (documented as integrated)
+![Web Dashboard Overview Placeholder](/docs/images/web_dashboard_placeholder.png)
+*Caption: The main intelligence dashboard showing live incidents, the priority queue, hazard overlays, and explicitly surfaced evidence cards.*
 
-## Repository Structure
+![Mobile App Reporting Screen Placeholder](/docs/images/mobile_app_placeholder.png)
+*Caption: The citizen-facing mobile application used for capturing ground truth data, working in tandem with the WhatsApp intake bot.*
 
-```text
-Team-CafeTerminal-HM50049/
-│
-├── backend/            # Backend service, API routes, and scoring engines
-├── frontend/           # Web client and map dashboard
-├── data/
-│   ├── raw/            # Unprocessed environmental and spatial datasets
-│   ├── processed/      # Normalized, projected, and cleaned layers
-│   └── sample/         # Small reference/test subsets for local runs
-├── notebooks/          # Exploratory data analysis and threshold experiments
-├── tests/              # Automated unit and integration tests
-├── docs/               # Architecture, algorithm notes, and tracking docs
-│   ├── architecture.md
-│   ├── data-sources.md
-│   ├── algorithms.md
-│   ├── development-log.md
-│   ├── prototype.md
-│   └── testing.md
-├── screenshots/        # Milestone captures and interface progression
-├── .gitignore          # Repository exclusion rules
-├── .env.example        # Environment variable template
-└── README.md           # Project documentation
-```
+## Resilient Data Infrastructure
+Our core engineering principle: **nothing has a single point of failure**. Every primary source has a documented, genuinely free fallback:
+* **Current Weather:** AccuWeather API -> Open-Meteo.
+* **Micro-location Rainfall:** OpenWeatherMap -> Open-Meteo hourly grid.
+* **Radar Visualization:** RainViewer API -> Open-Meteo precipitation probability layer.
+* **Riverine Flood Forecast:** Google Flood Hub API -> Custom hydrology proxy (cumulative rain + SRTM flow-accumulation).
+* **Landslide Susceptibility:** ISRO Bhuvan Landslide Atlas -> Static GSI/NRSC shapefiles.
+* **Road Graph:** OSM via Geofabrik -> Bhuvan WMS road layer.
+* **Population Base:** Meta High-Resolution Density Maps -> WorldPop 100m grid.
+* **Routing:** Self-hosted OSRM -> Public OSRM demo server fallback.
 
-## Incremental Development Note
+## Technology Stack
+* **Backend:** Python 3, Flask, SQLite, NumPy, Rasterio, GeoPandas
+* **Frontend:** Next.js, React, Tailwind CSS, Leaflet.js
+* **Mobile:** React Native, Expo
+* **Routing:** Self-hosted OSRM (Docker)
+* **AI & NLP:** Google Gemini API
 
-This repository is developed in disciplined, verifiable milestones following feature branches and incremental commits. Features, APIs, models, and interfaces are documented and integrated step-by-step.
+## Getting Started
 
-## Data Sources and Algorithms
+### Prerequisites
+* Python 3.10+
+* Node.js 18+ and npm
+* Expo Go app installed on your physical mobile device
+* Docker (for self-hosting the OSRM instance)
 
-Data sources and algorithmic formulations are subject to validation and will be documented in `docs/data-sources.md` and `docs/algorithms.md` as they are finalized and integrated.
+### 1. Backend Setup (Flask API)
+1. Navigate to the root directory.
+2. Create and activate a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows use: .\venv\Scripts\activate
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r backend/requirements.txt
+   ```
+4. Configure environment variables by renaming `env` to `.env` and adding your API keys (the system will use free fallbacks automatically if keys are omitted).
+5. Start the server:
+   ```bash
+   python -m backend.app
+   ```
+   The backend will run on `http://localhost:5000`.
 
-## Screenshots and Demo
+### 2. Frontend Setup (Next.js Web App)
+1. Open a new terminal and navigate to the `frontend` directory:
+   ```bash
+   cd frontend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+   Access the dashboard at `http://localhost:3000`.
 
-*(Placeholder — screenshots and demo links will be added as prototype milestones are completed).*
+### 3. Mobile Setup (Expo App)
+1. Open a third terminal and navigate to the `mobile` directory:
+   ```bash
+   cd mobile
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the Expo bundler:
+   ```bash
+   npm run start
+   ```
+4. Scan the generated QR code using the Expo Go app on your mobile device to test the application locally. Ensure your mobile device and computer are on the same local network.
+
+## License
+This project is proprietary and developed for deployment testing.
