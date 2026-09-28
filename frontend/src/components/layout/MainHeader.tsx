@@ -50,10 +50,10 @@ export const MainHeader: React.FC<MainHeaderProps> = ({
             </Link>
           ) : (
             <Link
-              href="/response"
+              href="/login"
               className="bg-primary text-on-primary text-[14px] font-normal rounded-pill px-[22px] py-[10px] hover:scale-95 transition-transform shadow-sm"
             >
-              Response Portal
+              Command Login
             </Link>
           )}
         </div>
