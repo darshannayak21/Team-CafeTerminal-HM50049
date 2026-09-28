@@ -20,8 +20,30 @@ export const DistrictIntelligence: React.FC<DistrictIntelligenceProps> = ({
     (u) => !u.talukaId || u.talukaId.toLowerCase() === district.id.toLowerCase()
   );
 
+  const handleDispatch = () => {
+    const missionData = {
+      title: district.name,
+      description: 'Stormwater capacity exceeded. Potential infrastructure risk.',
+      population: district.affectedPopulation,
+      brief: [
+        `Evacuate low-lying residents near ${district.name}.`,
+        'Main access point is currently compromised.',
+        'Use alternate designated route avoiding the primary intersection.'
+      ],
+      route: [
+        [18.5204, 73.8567], // PMC Dispatch
+        [18.5180, 73.8450],
+        district.centerCoordinates // Dynamic end based on selected district
+      ]
+    };
+    
+    // Save to local storage for the responder portal to pick up
+    localStorage.setItem('sahayak_active_mission', JSON.stringify(missionData));
+    alert('Mission Dispatched successfully! The field team will now see this on their portal.');
+  };
+
   return (
-    <div className="flex flex-col h-full bg-canvas overflow-y-auto scrollbar-none">
+    <div className="flex flex-col h-full bg-canvas overflow-y-auto scrollbar-none font-sans">
       {/* ── 1. DISTRICT HEADER ────────────────────────────────────────── */}
       <div className="p-6 md:p-8 border-b border-hairline bg-canvas">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -31,7 +53,7 @@ export const DistrictIntelligence: React.FC<DistrictIntelligenceProps> = ({
                 {district.name}
               </h1>
               <span className="text-[13px] font-normal text-ink-muted-48 uppercase tracking-wide">
-                Taluka
+                Priority Area
               </span>
             </div>
             <div className={`text-[12px] font-semibold uppercase tracking-wide ${
@@ -43,9 +65,21 @@ export const DistrictIntelligence: React.FC<DistrictIntelligenceProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-[12px] font-normal tracking-[-0.12px] px-3 py-1 border border-hairline bg-surface-pearl text-ink-muted-80 uppercase rounded-sm">
-              Tactical Intel
-            </span>
+            <select
+              className="text-[12px] font-medium tracking-[-0.12px] px-3 py-1.5 border border-hairline bg-surface-pearl text-ink rounded-sm focus:outline-none"
+              defaultValue=""
+            >
+              <option value="" disabled>Select Response Team</option>
+              <option value="medical-kothrud">Medical-Kothrud Team</option>
+              <option value="ndrf-alpha">NDRF Alpha Unit</option>
+              <option value="local-police">Local Police Reserve</option>
+            </select>
+            <button 
+              onClick={handleDispatch}
+              className="text-[12px] font-semibold tracking-[-0.12px] px-4 py-1.5 bg-brand-primary text-white uppercase rounded-sm hover:bg-brand-primary/90 transition-colors"
+            >
+              Dispatch Team
+            </button>
           </div>
         </div>
 
