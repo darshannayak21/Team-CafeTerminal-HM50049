@@ -102,32 +102,65 @@ def init_db() -> None:
                 ),
             )
 
-        # Ensure ONLY the single Navale Bridge news item is in the news table
-        cursor.execute("DELETE FROM news")
-        now_iso = datetime.now(timezone.utc).isoformat()
-        cursor.execute(
-            """
-            INSERT INTO news (
-                id, title, description, source, category,
-                location_name, latitude, longitude, timestamp,
-                is_simulated, badge, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                "NEWS-NAVALE-01",
-                "Traffic disruption reported near Navale Bridge",
-                "Traffic disruption and severe water accumulation reported along the NH-48 / Navale Bridge corridor. Vehicles moving at reduced speeds; commuters advised to use alternate bypass.",
-                "News",
-                "Traffic Alert",
-                "Navale Bridge, NH-48 Corridor",
-                18.45999,
-                73.82313,
-                now_iso,
-                0,
-                "News",
-                now_iso,
-            ),
-        )
+        # 2. News Table
+        cursor.execute("SELECT COUNT(*) as count FROM news")
+        news_row = cursor.fetchone()
+        if news_row and news_row["count"] == 0:
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            # 8 PM ISO (20:00:00)
+            warje_time = f"{today}T20:00:00Z"
+            # 9 PM ISO (21:00:00)
+            suncity_time = f"{today}T21:00:00Z"
+
+            # Warje Bridge News
+            cursor.execute(
+                """
+                INSERT INTO news (
+                    id, title, description, source, category,
+                    location_name, latitude, longitude, timestamp,
+                    is_simulated, badge, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "NEWS-WARJE-01",
+                    "CRITICAL: Warje Bridge Over Mutha River Partially Collapses",
+                    "A massive structural failure has led to the partial collapse of the Warje Bridge spanning the Mutha river. Emergency services are at the scene. Absolute halt on all vehicle movement. Commuters are advised to avoid the area indefinitely.",
+                    "Pune Mirror Live",
+                    "Infrastructure Failure",
+                    "Warje Bridge, Mutha River",
+                    18.4756,
+                    73.8086,
+                    warje_time,
+                    0,
+                    "News",
+                    warje_time,
+                ),
+            )
+
+            # Suncity Society News
+            cursor.execute(
+                """
+                INSERT INTO news (
+                    id, title, description, source, category,
+                    location_name, latitude, longitude, timestamp,
+                    is_simulated, badge, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "NEWS-SUNCITY-01",
+                    "BREAKING: Residential Building Collapse at Suncity Society - Over 100 lives at risk",
+                    "Tragedy strikes Anand Nagar as a residential wing in Suncity Society collapses following severe structural stress. Rescue operations are currently mobilizing. Over 100 lives at risk/affected. Multiple casualties feared.",
+                    "Times Network",
+                    "Disaster Alert",
+                    "Suncity Society, Anand Nagar",
+                    18.4831,
+                    73.8180,
+                    suncity_time,
+                    0,
+                    "News",
+                    suncity_time,
+                ),
+            )
 
         conn.commit()
 

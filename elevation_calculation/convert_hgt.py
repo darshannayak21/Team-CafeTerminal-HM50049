@@ -1,6 +1,31 @@
 import numpy as np
 import struct
 import os
+import gzip
+import shutil
+import urllib.request
+
+def ensure_hgt_file(tile_name):
+    dir_path = os.path.dirname(__file__)
+    hgt_path = os.path.join(dir_path, f"{tile_name}.hgt")
+    gz_path = os.path.join(dir_path, f"{tile_name}.hgt.gz")
+    
+    if os.path.exists(hgt_path):
+        return hgt_path
+        
+    if os.path.exists(gz_path):
+        print(f"Extracting existing {tile_name}.hgt.gz...")
+        with gzip.open(gz_path, 'rb') as f_in, open(hgt_path, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+        return hgt_path
+        
+    url = f"https://s3.amazonaws.com/elevation-tiles-prod/skadi/N18/{tile_name}.hgt.gz"
+    print(f"Downloading {tile_name}.hgt.gz from AWS...")
+    urllib.request.urlretrieve(url, gz_path)
+    print(f"Extracting {gz_path}...")
+    with gzip.open(gz_path, 'rb') as f_in, open(hgt_path, 'wb') as f_out:
+        shutil.copyfileobj(f_in, f_out)
+    return hgt_path
 
 def load_hgt(hgt_file):
     num_samples = 3601
@@ -11,8 +36,8 @@ def load_hgt(hgt_file):
     return np.where(arr == -32768, 0, arr)
 
 def convert_and_save():
-    hgt73_path = os.path.join(os.path.dirname(__file__), 'N18E073.hgt')
-    hgt74_path = os.path.join(os.path.dirname(__file__), 'N18E074.hgt')
+    hgt73_path = ensure_hgt_file('N18E073')
+    hgt74_path = ensure_hgt_file('N18E074')
     npy_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'backend', 'data', 'pune_elevation_merged.npy')
     
     print("Loading N18E073...")
@@ -31,3 +56,4 @@ def convert_and_save():
 
 if __name__ == "__main__":
     convert_and_save()
+
