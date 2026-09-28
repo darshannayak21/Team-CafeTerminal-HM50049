@@ -10,7 +10,7 @@
 import { Platform } from "react-native";
 
 // Change this LAN IP if your laptop's IP address changes on your local network
-export const DEFAULT_LAN_IP = "10.132.64.194";
+export const DEFAULT_LAN_IP = "192.168.1.14";
 export const BACKEND_PORT = 5000;
 
 // Auto-selects appropriate host for Android emulator, iOS simulator, or physical phone

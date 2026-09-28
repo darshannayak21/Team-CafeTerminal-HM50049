@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Alert,
+  TextInput,
 } from "react-native";
 import * as Location from "expo-location";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -114,6 +115,36 @@ export const LocationCapture: React.FC<LocationCaptureProps> = ({
     onLocationCaptured(null);
   };
 
+  const [customCoords, setCustomCoords] = useState("");
+
+  const handleSetCustomLocation = () => {
+    try {
+      const parts = customCoords.split(",");
+      if (parts.length !== 2) throw new Error("Format should be: lat, lng");
+      
+      const lat = parseFloat(parts[0].trim());
+      const lng = parseFloat(parts[1].trim());
+      
+      if (isNaN(lat) || isNaN(lng)) throw new Error("Invalid numbers");
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) throw new Error("Coordinates out of range");
+
+      const coords: GeoCoordinates = {
+        latitude: lat,
+        longitude: lng,
+        accuracy: null,
+        altitude: null,
+        timestamp: Date.now(),
+        formattedAddress: "Manual Coordinate Override",
+        districtOrSubdivision: null,
+      };
+
+      onLocationCaptured(coords);
+      setCustomCoords(""); // clear input on success
+    } catch (err: any) {
+      Alert.alert("Invalid Format", "Please enter coordinates like: 18.4756, 73.8086");
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.labelRow}>
@@ -135,7 +166,7 @@ export const LocationCapture: React.FC<LocationCaptureProps> = ({
           <View style={styles.cardHeader}>
             <View style={styles.signalHeader}>
               <View style={styles.gpsPulseDot} />
-              <Text style={styles.signalText}>GPS Lock Active</Text>
+              <Text style={styles.signalText}>{location.formattedAddress === "Manual Coordinate Override" ? "Manual Override Active" : "GPS Lock Active"}</Text>
               {location.accuracy !== null && (
                 <Text style={styles.accuracyText}>(±{location.accuracy}m)</Text>
               )}
@@ -187,6 +218,29 @@ export const LocationCapture: React.FC<LocationCaptureProps> = ({
               </View>
             )}
           </TouchableOpacity>
+
+          <View style={{ marginTop: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+              <View style={{ flex: 1, height: 1, backgroundColor: PALETTE.borderLight }} />
+              <Text style={{ fontSize: 11, color: PALETTE.textMuted, marginHorizontal: 12, fontWeight: '800', letterSpacing: 0.5 }}>OR ENTER MANUALLY</Text>
+              <View style={{ flex: 1, height: 1, backgroundColor: PALETTE.borderLight }} />
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TextInput
+                style={{ flex: 1, backgroundColor: PALETTE.surfaceSecondary, borderWidth: 1.5, borderColor: PALETTE.borderMedium, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 14, color: PALETTE.textPrimary, fontSize: 16, fontWeight: '500' }}
+                placeholder="18.4756, 73.8086"
+                placeholderTextColor={PALETTE.textMuted}
+                value={customCoords}
+                onChangeText={setCustomCoords}
+              />
+              <TouchableOpacity
+                onPress={handleSetCustomLocation}
+                style={{ backgroundColor: PALETTE.primaryDark, borderRadius: 8, paddingHorizontal: 20, justifyContent: 'center', alignItems: 'center', shadowColor: "#0F172A", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 }}
+              >
+                <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14, letterSpacing: 0.5 }}>SET</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
           {permissionDenied && (
             <View style={styles.deniedBanner}>
