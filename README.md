@@ -1,117 +1,62 @@
 # SAHAYAK: Hazard-to-Settlement-to-Road Intelligence Platform
 
 ## Overview
-Communities frequently receive flood or landslide warnings without knowing which roads are still usable or where help is needed first. SAHAYAK is a comprehensive intelligence platform that bridges this gap. It connects hazard warnings with affected settlements and road accessibility, utilizing environmental observations and real-time reports from people on the ground. This allows response teams to explain each alert transparently and prioritize their actions effectively.
+SAHAYAK is a state-of-the-art, multi-layered geospatial intelligence platform engineered to bridge the critical gap between early disaster warnings and actionable on-ground response. Unlike conventional systems that merely predict *where* a hazard might occur, SAHAYAK calculates the cascading impact on critical infrastructure and human populations. By integrating high-frequency environmental telemetry, deep topographical modeling, and localized ground-truth streams, the platform precisely determines which road networks remain navigable, which settlements are structurally isolated, and how to optimally route emergency responders.
 
-## Problem Statement
-A generic warning without knowing which roads still work is not actionable. Existing systems answer "will it flood here", but fail to answer:
-* Which roads are still usable?
-* Which settlements need help first?
-* How confident are we in this warning, and what is the underlying evidence?
+## The Intelligence Architecture: Deep Geospatial Layers
+Our platform achieves unprecedented accuracy by compositing multiple highly calibrated data layers and employing advanced inference engines:
 
-## Intelligence Layer & Core Algorithms
+### 1. Topographical & Elevation Analytics Layer
+* **NASA SRTM (Shuttle Radar Topography Mission) Methodology:** We process 30-meter resolution `.hgt` DEM (Digital Elevation Model) tiles to compute highly granular terrain slopes, drainage basins, and hydrological flow accumulation models. This forms the foundational bedrock for flash flood susceptibility modeling.
+* **Geological Hazard Zones:** Real-time ingestion of landslide susceptibility polygons using data derived from the ISRO Bhuvan Landslide Atlas and the Geological Survey of India (GSI).
 
-Our platform relies on four highly calibrated mathematical layers to determine response priority:
+### 2. Hyper-Local Meteorological Layer
+* **IMD (Indian Meteorological Department) AWS Telemetry:** Real-time integration of Automatic Weather Station (AWS) data for highly localized precipitation ground-truth.
+* **Multispectral Satellite & Radar Feeds:** Processing dense, high-frequency satellite rainfall observation data (NASA GPM IMERG) alongside micro-location grids from OpenWeatherMap, AccuWeather, and RainViewer APIs.
+* **Precipitation Probability Heatmaps:** Live rendering of Open-Meteo nowcast models to visualize moving weather fronts with minute-level precision.
 
-### 1. Hazard Scoring Engine
-We calculate hazard severity per grid cell (village level) by combining weather telemetry with topography:
-`hazard_score = w1(rainfall_intensity) + w2(cumulative_72h_rainfall) + w3(terrain_susceptibility) + w4(distance_to_known_flood_zone_inverse)`
-* **Terrain Susceptibility** is calculated using SRTM-derived slope, flow accumulation (for floods), and Bhuvan landslide classification (for the Western Ghats).
+### 3. Demographic & Administrative Layer
+* **High-Resolution Population Density Grids:** Utilizing Meta (CIESIN) 30m High-Resolution Population Maps and WorldPop gridded datasets to quantify the exact number of individuals exposed in a hazard zone.
+* **LGD (Local Government Directory) & Taluka Boundaries:** Precise administrative clipping using Census India and Bhuvan village/Taluka boundaries to ensure impact reports align perfectly with bureaucratic response jurisdictions.
 
-### 2. Settlement Impact Scorer
-A high-hazard, low-population hamlet ranks below a moderate-hazard, high-population village to ensure limited resources are triaged logically.
-`settlement_impact = hazard_score(village) * population(village)`
-* Population counts are actively mapped using Meta High-Resolution Population Density Maps and Bhuvan administrative boundaries.
+### 4. Dynamic Road Graph & Accessibility Inference Layer
+* **OSRM Custom Profile Routing:** Operating a self-hosted Open Source Routing Machine (OSRM) instance over OpenStreetMap (OSM) data for Maharashtra. 
+* **Algorithmic Closure Penalties:** A road segment is algorithmically penalized (marked "at-risk") if it intersects a hazardous grid cell, crosses historical low-water causeways, or triggers a threshold of corroborating ground reports. OSRM recalculates safe routes dynamically, avoiding silent failures.
 
-### 3. Road-Closure Inference & Dynamic Routing
-Powered by a self-hosted OSRM instance over OpenStreetMap data for Maharashtra. A road segment is marked "at-risk" if:
-1. It intersects a grid cell above the hazard threshold, OR
-2. It crosses a known low-water crossing / historical flood zone, OR
-3. It has ≥2 independent crowd reports flagging it within the last N hours.
-At-risk segments receive routing-weight penalties. OSRM naturally reroutes around them, returning usable alternate paths rather than failing silently.
+### 5. Multi-Channel Ground Truth & News Scraping Layer
+* **Dedicated Citizen Reporting Mobile App:** A specialized React Native mobile application deployed for on-the-ground intelligence gathering. Citizens can report blockages, water levels, and incidents with geolocated photographic evidence.
+* **Autonomous Web Scraping & Live News Agents:** Dedicated autonomous AI agents that continuously scrape, parse, and geolocate live regional news reports and social media feeds, feeding unstructured disaster updates directly into our intelligence pipeline as secondary validation nodes.
+* **WhatsApp & SMS Intake:** Low-connectivity integration via Twilio and WhatsApp Business Cloud API.
 
-### 4. Intelligent Priority Queue
-Responders see a dynamically ranked queue where final priority dictates action:
-`priority = settlement_impact * road_isolation_factor`
-* `road_isolation_factor` spikes when a settlement's *only* access routes are flagged as at-risk (i.e., genuinely cut off), not just when one of several roads is affected.
+### 6. Evidence-Weighted Confidence Engine
+Every generated alert carries a transparent, deterministic **Confidence Score**. The engine scales probability by corroborating diverse sensor inputs (e.g., IMD AWS + SRTM elevation + 2 mobile app reports + scraped local news) while algorithmically down-weighting conflicting telemetries.
 
-### 5. Confidence & Evidence Engine
-Every alert carries a confidence score built transparently from its inputs. The system weighs base data source quality, adds weight for corroborating ground truth, and subtracts weight if inputs conflict (e.g., rain sensors conflict with ground reports). The UI explicitly surfaces the exact evidence stack (e.g., "72mm rain in 3h + SRTM low-lying zone + 2 ground reports").
-
-### 6. AI-Powered Triaging & Replay Harness
-Google Gemini API is utilized for report triage, alert explanation text, and generating the "why" narrative. The platform includes a built-in historical-event replay harness with labeled ground truth (e.g., 2019/2021 Pune floods). This provides hard, tested numbers on our **False Positive Rate** and **Route Validity Success Rate** under simulated disruptions.
-
-## System Architecture
-
-```mermaid
-graph TD
-    subgraph Data Ingestion Layer
-        W[Weather: AccuWeather / OpenWeather / Open-Meteo]
-        E[NASA SRTM & Bhuvan Landslide Atlas]
-        POP[Meta Population Grid & Bhuvan Boundaries]
-        RD[OSM Road Graph]
-    end
-
-    subgraph Ground Truth Layer
-        M[React Native Mobile App]
-        WA[WhatsApp & SMS Twilio Intake]
-        R[Citizen Reports: Photos & Location]
-        M --> R
-        WA --> R
-    end
-
-    subgraph Intelligence Engine
-        F[Flask Backend API]
-        DB[(Local Database)]
-        AI[Gemini Reasoning & Explanation]
-        RTE[OSRM Routing Engine]
-        
-        W --> F
-        E --> F
-        POP --> F
-        RD --> RTE
-        R --> F
-        F --> DB
-        F <--> AI
-        F <--> RTE
-    end
-
-    subgraph Response Dashboard
-        D[Next.js Web Frontend]
-        P[Priority Queue & Confidence Scores]
-        MAP[Live GIS Map with Overlays]
-        
-        F --> D
-        D --> P
-        D --> MAP
-    end
-```
+### 7. AI-Powered Triage & Historical Replay Harness
+* **Google Gemini AI Explanation:** Gemini API interprets the complex multidimensional data to output actionable, human-readable triage summaries and "why" narratives.
+* **Simulated Disruption Harness:** The system supports a "Replay Mode" for historical event backtesting (e.g., 2019/2021 Pune floods), rigorously measuring our False Positive Rate and Route Validity under simulated network degradation.
 
 ## Screenshots
 
-![Web Dashboard Overview Placeholder](/docs/images/web_dashboard_placeholder.png)
-*Caption: The main intelligence dashboard showing live incidents, the priority queue, hazard overlays, and explicitly surfaced evidence cards.*
+![SAHAYAK Response Dashboard](docs/images/Sahayakdb.png)
+*Caption: The main intelligence dashboard highlighting the live priority queue, LGD Taluka overlays, IMD AWS weather integration, and the explicitly surfaced evidence confidence cards.*
 
-![Mobile App Reporting Screen Placeholder](/docs/images/mobile_app_placeholder.png)
-*Caption: The citizen-facing mobile application used for capturing ground truth data, working in tandem with the WhatsApp intake bot.*
+![Citizen Ground Truth Mobile App](docs/images/rainguardphone.png)
+*Caption: The dedicated citizen-facing mobile application capturing geolocated disaster evidence, seamlessly syncing with the central intelligence node.*
 
-## Resilient Data Infrastructure
-Our core engineering principle: **nothing has a single point of failure**. Every primary source has a documented, genuinely free fallback:
+## Resilient Infrastructure & API Fallbacks
+Engineered with zero single points of failure. Every critical system has an automated fallback protocol:
 * **Current Weather:** AccuWeather API -> Open-Meteo.
-* **Micro-location Rainfall:** OpenWeatherMap -> Open-Meteo hourly grid.
-* **Radar Visualization:** RainViewer API -> Open-Meteo precipitation probability layer.
-* **Riverine Flood Forecast:** Google Flood Hub API -> Custom hydrology proxy (cumulative rain + SRTM flow-accumulation).
-* **Landslide Susceptibility:** ISRO Bhuvan Landslide Atlas -> Static GSI/NRSC shapefiles.
-* **Road Graph:** OSM via Geofabrik -> Bhuvan WMS road layer.
-* **Population Base:** Meta High-Resolution Density Maps -> WorldPop 100m grid.
-* **Routing:** Self-hosted OSRM -> Public OSRM demo server fallback.
+* **Radar & Nowcast:** RainViewer API -> Open-Meteo probability layer.
+* **Flood Forecasting:** Google Flood Hub API -> Custom hydrology proxy (SRTM + Cumulative rain).
+* **Population:** Meta High-Resolution Density -> WorldPop 100m.
+* **Road Network:** Geofabrik OSM -> Bhuvan WMS.
 
 ## Technology Stack
-* **Backend:** Python 3, Flask, SQLite, NumPy, Rasterio, GeoPandas
-* **Frontend:** Next.js, React, Tailwind CSS, Leaflet.js
-* **Mobile:** React Native, Expo
-* **Routing:** Self-hosted OSRM (Docker)
-* **AI & NLP:** Google Gemini API
+* **Core Analytics & Backend:** Python 3, Flask, NumPy, Rasterio, GeoPandas, SQLite
+* **Frontend Dashboard:** Next.js, React, Tailwind CSS, Leaflet.js
+* **Mobile Field App:** React Native, Expo
+* **Algorithmic Routing:** Self-hosted OSRM via Docker
+* **AI & Web Scraping:** Google Gemini API, Custom News Scraping Agents
 
 ## Getting Started
 
