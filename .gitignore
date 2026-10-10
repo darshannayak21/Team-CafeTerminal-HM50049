@@ -31,7 +31,7 @@ Thumbs.db
 .ipynb_checkpoints/
 
 # Local databases
-*.db
+# *.db (Commented out to allow pushing rainguard.db for demo purposes)
 *.sqlite
 *.sqlite3
 
