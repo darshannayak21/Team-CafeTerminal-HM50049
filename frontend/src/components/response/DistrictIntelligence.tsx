@@ -14,32 +14,88 @@ export const DistrictIntelligence: React.FC<DistrictIntelligenceProps> = ({
   district,
 }) => {
   const [selectedIncident, setSelectedIncident] = useState<IncidentMarkerData | null>(null);
+  const [liveIncidents, setLiveIncidents] = useState<IncidentMarkerData[]>([]);
+  const [selectedTeam, setSelectedTeam] = useState<string>('');
   const [showEvidenceBreakdown, setShowEvidenceBreakdown] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    fetch('http://localhost:5000/api/reports')
+      .then(res => res.json())
+      .then(data => {
+        if (data.data) {
+          const formatted = data.data.map((r: any) => ({
+            id: r.id,
+            title: r.incident_type,
+            coordinates: [r.latitude, r.longitude],
+            severity: 'critical'
+          }));
+          setLiveIncidents(formatted);
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   const districtUpdates = PROTOTYPE_LIVE_UPDATES.filter(
     (u) => !u.talukaId || u.talukaId.toLowerCase() === district.id.toLowerCase()
   );
 
-  const handleDispatch = () => {
-    const missionData = {
-      title: district.name,
-      description: 'Stormwater capacity exceeded. Potential infrastructure risk.',
-      population: district.affectedPopulation,
-      brief: [
-        `Evacuate low-lying residents near ${district.name}.`,
-        'Main access point is currently compromised.',
-        'Use alternate designated route avoiding the primary intersection.'
-      ],
-      route: [
-        [18.5204, 73.8567], // PMC Dispatch
-        [18.5180, 73.8450],
-        district.centerCoordinates // Dynamic end based on selected district
-      ]
-    };
+  const handleDispatch = async () => {
+    if (!selectedTeam) {
+      alert('Please select a Response Team first.');
+      return;
+    }
     
-    // Save to local storage for the responder portal to pick up
-    localStorage.setItem('sahayak_active_mission', JSON.stringify(missionData));
-    alert('Mission Dispatched successfully! The field team will now see this on their portal.');
+    try {
+      let originLat = 18.5033; // Default Kothrud
+      let originLon = 73.8066;
+      
+      if (selectedTeam === 'pimpri-rescue') {
+        originLat = 18.6519; // PCCOE base
+        originLon = 73.7619;
+      }
+      
+      if (!selectedIncident) {
+        alert('Please select an incident on the map first to dispatch the team to that location.');
+        return;
+      }
+      
+      const destLat = selectedIncident.coordinates[0];
+      const destLon = selectedIncident.coordinates[1];
+      
+      const res = await fetch('http://localhost:5000/api/route', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          origin_lat: originLat,
+          origin_lon: originLon,
+          dest_lat: destLat,
+          dest_lon: destLon,
+          team_name: selectedTeam
+        })
+      });
+      const data = await res.json();
+      
+      const missionData = {
+        title: 'Emergency: MIT WPU Flooding',
+        description: 'Road flooded and people need help immediately.',
+        population: 500,
+        brief: [
+          'Evacuate students and staff from ground floors.',
+          'Beware of deep water on primary approach roads.',
+          'Follow the dynamically generated safe route.'
+        ],
+        route: data.waypoints || [],
+        distance_km: data.distance_km,
+        duration_minutes: data.duration_minutes,
+        risk_score: data.overall_risk_score,
+        safety_status: data.safety_status
+      };
+      
+      localStorage.setItem('sahayak_active_mission', JSON.stringify(missionData));
+      alert('Mission Dispatched successfully! Safe route calculated via NetworkX.');
+    } catch (e) {
+      alert('Error calculating route: ' + e);
+    }
   };
 
   return (
@@ -67,10 +123,12 @@ export const DistrictIntelligence: React.FC<DistrictIntelligenceProps> = ({
           <div className="flex items-center gap-2">
             <select
               className="text-[12px] font-medium tracking-[-0.12px] px-3 py-1.5 border border-hairline bg-surface-pearl text-ink rounded-sm focus:outline-none"
-              defaultValue=""
+              value={selectedTeam}
+              onChange={(e) => setSelectedTeam(e.target.value)}
             >
               <option value="" disabled>Select Response Team</option>
               <option value="medical-kothrud">Medical-Kothrud Team</option>
+              <option value="pimpri-rescue">PCCOE Rescue Team</option>
               <option value="ndrf-alpha">NDRF Alpha Unit</option>
               <option value="local-police">Local Police Reserve</option>
             </select>
@@ -127,7 +185,7 @@ export const DistrictIntelligence: React.FC<DistrictIntelligenceProps> = ({
       <div className="h-[400px] w-full relative border-b border-hairline">
         <DistrictMapContainer
           district={district}
-          incidents={PROTOTYPE_INCIDENTS}
+          incidents={liveIncidents}
           selectedIncident={selectedIncident}
           onSelectIncident={setSelectedIncident}
         />

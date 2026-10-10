@@ -23,13 +23,15 @@ export default function LoginPage() {
       } catch (fbError) {
         if (
           !(email === 'admin@gmail.com' && password === 'admin123') &&
-          !(email === 'medical@gmail.com' && password === 'medical123')
+          !(email === 'medical@gmail.com' && password === 'medical123') &&
+          !(email === 'pimpri@gmail.com' && password === 'pimpri123')
         ) {
-          throw new Error("Invalid credentials. Try admin@gmail.com or medical@gmail.com");
+          throw new Error("Invalid credentials. Try admin@gmail.com, medical@gmail.com, or pimpri@gmail.com");
         }
       }
 
-      if (email === 'medical@gmail.com') {
+      if (email === 'medical@gmail.com' || email === 'pimpri@gmail.com') {
+        localStorage.setItem('sahayak_team_email', email);
         router.push('/responder');
       } else {
         router.push('/');

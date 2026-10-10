@@ -18,6 +18,7 @@ const TEAMS_DATA: { id: string; name: string; base: [number, number]; type: stri
   { id: 'medical-pimpri', name: 'PCMC Medical Unit', base: [18.6298, 73.7997], type: 'Medical', color: '#9f1239' },
   { id: 'police-viman', name: 'Viman Nagar Police', base: [18.5679, 73.9143], type: 'Police', color: '#1d4ed8' },
   { id: 'fire-baner', name: 'Baner Fire Station', base: [18.5590, 73.7868], type: 'Fire', color: '#991b1b' },
+  { id: 'pimpri-rescue', name: 'PCCOE Rescue Team', base: [18.6519, 73.7619], type: 'NDRF', color: '#8b5cf6' },
 ];
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -321,70 +322,116 @@ export default function MainPage() {
                               alert("Please select a team first.");
                               return;
                             }
-                            
+
                             const selectedTeam = TEAMS_DATA.find(t => t.id === selectEl.value)!;
-                            
-                            // Dynamic OSRM Routing Engine
                             let waypoints: [number, number][] = [
-                                selectedTeam.base,
-                                [report.latitude, report.longitude]
+                              selectedTeam.base,
+                              [report.latitude, report.longitude],
                             ];
-                            
+                            let safetyBrief: string[] = [
+                              `Reported location: ${report.location_name || 'Field coordinates'}`,
+                              `Incident type: ${report.incident_type}`,
+                              'Follow designated route. Proceed with caution.',
+                            ];
+                            let distanceKm: string = getDistance(selectedTeam.base[0], selectedTeam.base[1], report.latitude, report.longitude).toFixed(1);
+                            let durationMinutes = 14;
+                            let atRiskSegments = 0;
+                            let blockedAvoided = 0;
+                            let routeSummary = 'Flood-aware route calculated';
+                            let riskScore = 0;
+                            let safetyStatus = 'COMPUTING';
+
                             try {
-                                let osrmUrl = '';
-                                if (selectEl.value === 'medical-kothrud') {
-                                    // Route via Rajaram Bridge (73.8385, 18.4975) to avoid Warje Bridge
-                                    osrmUrl = `https://router.project-osrm.org/route/v1/driving/${selectedTeam.base[1]},${selectedTeam.base[0]};73.8385,18.4975;${report.longitude},${report.latitude}?overview=full&geometries=geojson`;
-                                } else {
-                                    osrmUrl = `https://router.project-osrm.org/route/v1/driving/${selectedTeam.base[1]},${selectedTeam.base[0]};${report.longitude},${report.latitude}?overview=full&geometries=geojson`;
+                              // ── Call flood-aware routing backend (allow up to 60s for graph load) ──
+                              const controller = new AbortController();
+                              const timeoutId = setTimeout(() => controller.abort(), 60000);
+                              
+                              const routeRes = await fetch('http://localhost:5000/api/route', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                signal: controller.signal,
+                                body: JSON.stringify({
+                                  origin_lat: selectedTeam.base[0],
+                                  origin_lon: selectedTeam.base[1],
+                                  dest_lat: report.latitude,
+                                  dest_lon: report.longitude,
+                                  team_name: selectedTeam.name,
+                                }),
+                              });
+                              clearTimeout(timeoutId);
+
+                              if (routeRes.ok) {
+                                const routeData = await routeRes.json();
+                                console.log('[Dispatch] Route response:', {
+                                  success: routeData.success,
+                                  waypoints: routeData.waypoints?.length,
+                                  status: routeData.safety_status,
+                                  distance: routeData.distance_km,
+                                });
+                                if (routeData.success && routeData.waypoints?.length > 2) {
+                                  waypoints = routeData.waypoints as [number, number][];
+                                  distanceKm = String(routeData.distance_km ?? distanceKm);
+                                  durationMinutes = routeData.duration_minutes ?? durationMinutes;
+                                  atRiskSegments = routeData.at_risk_segments_count ?? 0;
+                                  blockedAvoided = routeData.blocked_segments_count ?? 0;
+                                  riskScore = routeData.overall_risk_score ?? 0;
+                                  safetyStatus = routeData.safety_status ?? 'COMPUTED';
+                                  routeSummary = routeData.rerouted
+                                    ? `⚠ Auto-rerouted — ${blockedAvoided} blocked zone(s) avoided via 500m exclusion`
+                                    : `Flood-aware route · Risk: ${(riskScore * 100).toFixed(0)}%`;
+                                  safetyBrief = routeData.safety_brief?.length
+                                    ? routeData.safety_brief
+                                    : safetyBrief;
+                                } else if (routeData.waypoints?.length === 2) {
+                                  // Fallback straight line returned — warn user
+                                  console.warn('[Dispatch] Backend returned only 2 waypoints (fallback). Status:', routeData.safety_status);
+                                  safetyBrief = ['⚠ Could not compute full road route. Using direct path.', ...safetyBrief];
+                                  waypoints = routeData.waypoints;
                                 }
-                                
-                                const osrmRes = await fetch(osrmUrl);
-                                const osrmData = await osrmRes.json();
-                                
-                                if (osrmData.routes && osrmData.routes.length > 0) {
-                                    waypoints = osrmData.routes[0].geometry.coordinates.map((coord: [number, number]) => [coord[1], coord[0]]);
-                                }
-                            } catch (e) {
-                                console.error("OSRM Routing failed", e);
+                              }
+                            } catch (e: any) {
+                              if (e.name === 'AbortError') {
+                                console.error('[Dispatch] Route request timed out after 60s');
+                                safetyBrief = ['⚠ Route computation timed out. Retry dispatch.', ...safetyBrief];
+                              } else {
+                                console.warn('[Dispatch] Flood-aware routing failed:', e.message);
+                              }
                             }
-                            
+
                             const missionData = {
                               title: report.incident_type,
                               description: report.description || 'Respond to field incident immediately.',
-                              population: (report.analysis_result && report.analysis_result.estimated_lives_at_risk) ? report.analysis_result.estimated_lives_at_risk : 'Unknown (Requires Field Assessment)',
-                              brief: [
-                                `Reported location: ${report.location_name || 'Field coordinates'}`,
-                                `Incident type: ${report.incident_type}`,
-                                selectEl.value === 'medical-kothrud' ? 'WARNING: Primary route via Warje Bridge is closed. Rerouted via Rajaram Bridge.' : 'Follow designated route.',
-                                'Proceed with caution and assess the situation.'
-                              ],
+                              population: (report.analysis_result?.estimated_lives_at_risk) ?? 'Unknown (Requires Field Assessment)',
+                              brief: safetyBrief,
                               route: waypoints,
-                              team: selectedTeam
+                              team: selectedTeam,
+                              risk_score: riskScore,
+                              safety_status: safetyStatus,
                             };
-                            
+
                             localStorage.setItem('sahayak_active_mission', JSON.stringify(missionData));
-                            
-                            // Show route on main dashboard map
+
                             const newRoute = {
                               id: 'dispatch-' + report.id + '-' + Date.now(),
                               fromName: selectedTeam.name,
-                              toName: 'Incident Location',
+                              toName: `Incident: ${report.incident_type}`,
                               fromCoords: waypoints[0],
                               toCoords: waypoints[waypoints.length - 1],
-                              distanceKm: getDistance(waypoints[0][0], waypoints[0][1], waypoints[waypoints.length - 1][0], waypoints[waypoints.length - 1][1]).toFixed(1),
-                              durationMinutes: 14,
-                              atRiskSegmentsCount: 0,
-                              disruptedSegmentsAvoidedCount: selectEl.value === 'medical-kothrud' ? 1 : 0,
-                              waypoints: waypoints,
-                              routeSummary: 'Safest route via calculated path',
+                              distanceKm,
+                              durationMinutes,
+                              atRiskSegmentsCount: atRiskSegments,
+                              disruptedSegmentsAvoidedCount: blockedAvoided,
+                              waypoints,
+                              routeSummary,
                               color: selectedTeam.color,
                               teamName: selectedTeam.name,
-                              population: missionData.population
+                              population: missionData.population,
+                              riskScore,
+                              safetyStatus,
                             };
-                            
+
                             setActiveRoutes(prev => [...prev, newRoute]);
-                            alert(`Mission Dispatched to ${selectedTeam.name} successfully!`);
+                            alert(`Mission Dispatched to ${selectedTeam.name}!\n\n${safetyBrief.slice(0, 3).join('\n')}`);
                           }}
                           className="text-[10px] font-bold px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                         >

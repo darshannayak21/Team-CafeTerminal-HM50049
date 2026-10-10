@@ -202,7 +202,7 @@ Output as strict JSON with exactly these fields:
                                 ]
                             }
                         ]
-                        model_name = "llama-3.2-11b-vision-preview"
+                        model_name = "llama-3.2-90b-vision-preview"
                 except Exception as img_e:
                     print(f"[AIService] Image processing error: {img_e}")
 
