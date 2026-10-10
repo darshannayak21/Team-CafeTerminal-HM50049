@@ -8,6 +8,9 @@ from backend.routes.elevation import elevation_bp
 from backend.routes.rainfall import rainfall_bp
 from backend.routes.reports import reports_bp
 from backend.routes.news import news_bp
+from backend.routes.priorities import priorities_bp
+from backend.routes.ai import ai_bp
+from backend.routes.replay import replay_bp
 from backend.services.db import init_db
 
 
@@ -39,6 +42,9 @@ def create_app(config_class: type[Config] | None = None) -> Flask:
     app.register_blueprint(rainfall_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(news_bp)
+    app.register_blueprint(priorities_bp)
+    app.register_blueprint(ai_bp)
+    app.register_blueprint(replay_bp)
 
     return app
 

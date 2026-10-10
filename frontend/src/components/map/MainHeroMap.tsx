@@ -43,6 +43,9 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
   
   const elevationLayerRef = useRef<L.LayerGroup | null>(null);
   const stationsLayerRef = useRef<L.LayerGroup | null>(null);
+  const historicalLayerRef = useRef<L.LayerGroup | null>(null);
+
+  const [showHistorical, setShowHistorical] = React.useState(false);
 
   // Initialize Map
   useEffect(() => {
@@ -76,12 +79,14 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
     const incidentLayer = L.layerGroup().addTo(map);
     const groundReportsLayer = L.layerGroup().addTo(map);
     const newsLayer = L.layerGroup().addTo(map);
+    const historicalLayer = L.layerGroup().addTo(map);
 
     polygonLayerRef.current = polygonLayer;
     routeLayerRef.current = routeLayer;
     incidentLayerRef.current = incidentLayer;
     groundReportsLayerRef.current = groundReportsLayer;
     newsLayerRef.current = newsLayer;
+    historicalLayerRef.current = historicalLayer;
 
     mapInstanceRef.current = map;
 
@@ -578,6 +583,78 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
     }
   }, [showStations]);
 
+  // Handle Historical Events Layer
+  useEffect(() => {
+    if (!mapInstanceRef.current || !historicalLayerRef.current) return;
+    const map = mapInstanceRef.current;
+    
+    if (showHistorical) {
+      fetch('http://localhost:5000/api/replay/events')
+        .then(res => res.json())
+        .then(data => {
+          if (data.events && historicalLayerRef.current) {
+            historicalLayerRef.current.clearLayers();
+            
+            data.events.forEach((event: any) => {
+              // Plot affected settlements
+              (event.affected_settlements || []).forEach((settlement: any) => {
+                if (settlement.lat && settlement.lng) {
+                  const icon = L.divIcon({
+                    html: `<div style="width:16px; height:16px; background-color:#ef4444; border: 2px solid white; border-radius:50%; box-shadow: 0 4px 12px rgba(239,68,68,0.6);"></div>`,
+                    className: '', iconSize: [16,16], iconAnchor: [8,8], popupAnchor: [0, -8]
+                  });
+                  L.marker([settlement.lat, settlement.lng], { icon })
+                    .bindPopup(`
+                      <div style="font-family:'Inter', sans-serif; min-width:220px; padding:2px;">
+                        <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#ef4444; margin-bottom:4px;">Historical Flood Zone</div>
+                        <h4 style="margin:0 0 8px 0; color:#0f172a; font-size:15px; font-weight:600; letter-spacing:-0.2px;">${settlement.name}</h4>
+                        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px; margin-bottom:8px;">
+                          <div style="font-size:12px; color:#475569; margin-bottom:4px;"><strong>Event:</strong> ${event.name}</div>
+                          <div style="font-size:12px; color:#475569;"><strong>Population:</strong> ${settlement.population?.toLocaleString() || 'N/A'}</div>
+                        </div>
+                        ${settlement.notes ? `<div style="font-size:12px; color:#64748b; font-style:italic;">"${settlement.notes}"</div>` : ''}
+                      </div>
+                    `)
+                    .addTo(historicalLayerRef.current!);
+                }
+              });
+              // Plot closed roads
+              (event.closed_roads || []).forEach((road: any) => {
+                if (road.lat && road.lng) {
+                  const icon = L.divIcon({
+                    html: `<div style="width:20px; height:20px; display:flex; align-items:center; justify-content:center; background:#0f172a; color:#fff; border-radius:6px; font-size:10px; box-shadow:0 4px 12px rgba(15,23,42,0.4);">
+                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                           </div>`,
+                    className: '', iconSize: [20,20], iconAnchor: [10,10], popupAnchor: [0, -10]
+                  });
+                  L.marker([road.lat, road.lng], { icon })
+                    .bindPopup(`
+                      <div style="font-family:'Inter', sans-serif; min-width:220px; padding:2px;">
+                        <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#0f172a; margin-bottom:4px;">Historical Road Closure</div>
+                        <h4 style="margin:0 0 8px 0; color:#0f172a; font-size:15px; font-weight:600; letter-spacing:-0.2px;">${road.name}</h4>
+                        <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; padding:8px;">
+                          <div style="font-size:12px; color:#334155; margin-bottom:4px;"><strong>Status:</strong> <span style="color:#ef4444; font-weight:600;">${road.status.toUpperCase()}</span></div>
+                          <div style="font-size:12px; color:#475569;"><strong>Reason:</strong> ${road.reason}</div>
+                        </div>
+                      </div>
+                    `)
+                    .addTo(historicalLayerRef.current!);
+                }
+              });
+            });
+            historicalLayerRef.current.addTo(map);
+          }
+        })
+        .catch(err => console.error('Failed to fetch historical data:', err));
+    } else {
+      if (historicalLayerRef.current) {
+        historicalLayerRef.current.clearLayers();
+        map.removeLayer(historicalLayerRef.current);
+      }
+    }
+  }, [showHistorical]);
+
+
   return (
     <div className="relative w-full h-full min-h-[480px]">
       {/* Map Layers Panel */}
@@ -644,6 +721,15 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
               className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" 
             />
             <span className="text-[13px] font-medium text-slate-700 group-hover:text-slate-900">IMD AWS Weather</span>
+          </label>
+          <label className="flex items-center space-x-3 cursor-pointer group pt-2 border-t border-slate-200">
+            <input 
+              type="checkbox" 
+              checked={showHistorical} 
+              onChange={() => setShowHistorical(!showHistorical)}
+              className="w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer" 
+            />
+            <span className="text-[13px] font-medium text-slate-700 group-hover:text-slate-900">Historical Disasters</span>
           </label>
         </div>
       </div>

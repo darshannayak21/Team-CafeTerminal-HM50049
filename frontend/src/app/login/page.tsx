@@ -32,7 +32,7 @@ export default function LoginPage() {
       if (email === 'medical@gmail.com') {
         router.push('/responder');
       } else {
-        router.push('/dispatch');
+        router.push('/');
       }
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');
@@ -51,7 +51,7 @@ export default function LoginPage() {
       <div className="w-full max-w-[440px] bg-canvas p-10 md:p-12 rounded-[18px] shadow-sm border border-hairline mt-8">
         <div className="text-center mb-10">
           <h1 className="text-[34px] font-semibold text-ink tracking-[-0.374px] leading-[1.1] mb-2">
-            Sign in to Command
+            Secure Login
           </h1>
           <p className="text-[17px] text-ink-muted-80 font-normal tracking-[-0.374px]">
             Access your dispatch or responder dashboard.
@@ -100,7 +100,7 @@ export default function LoginPage() {
           <div className="text-[12px] text-ink-muted-48 tracking-[-0.12px] text-center space-y-2">
             <p className="font-semibold text-ink-muted-80 uppercase mb-3">Demo Accounts</p>
             <div className="flex justify-between items-center bg-surface-pearl px-4 py-2 rounded-[8px] border border-hairline">
-              <span>Dispatcher</span>
+              <span>Admin Dispatcher</span>
               <span className="font-semibold text-ink">admin@gmail.com</span>
             </div>
             <div className="flex justify-between items-center bg-surface-pearl px-4 py-2 rounded-[8px] border border-hairline">

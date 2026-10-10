@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MainHeader } from '@/components/layout/MainHeader';
 import { RoutePlanner } from '@/components/public/RoutePlanner';
 import { ReportIncidentModal } from '@/components/public/ReportIncidentModal';
@@ -68,6 +68,11 @@ export default function MainPage() {
   const [newsFeed, setNewsFeed] = useState<NewsReport[]>([]);
   const [activeTab, setActiveTab] = useState<'ground' | 'simulated'>('ground');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  
+  // Notification State
+  const [notification, setNotification] = useState<{title: string, message: string, type: 'report'|'news'}|null>(null);
+  const prevReportsCountRef = useRef(0);
+  const prevNewsCountRef = useRef(0);
 
   // Poll Backend for Live Ground Reports & Simulated News
   useEffect(() => {
@@ -84,12 +89,24 @@ export default function MainPage() {
           const data = await reportsRes.value.json();
           const reports = data.reports || data.data || [];
           setGroundReports(reports);
+          
+          if (reports.length > prevReportsCountRef.current && prevReportsCountRef.current > 0) {
+             setNotification({ title: 'New Ground Report', message: reports[reports.length - 1]?.incident_type || reports[0]?.incident_type, type: 'report' });
+             setTimeout(() => setNotification(null), 6000);
+          }
+          prevReportsCountRef.current = reports.length;
         }
 
         if (newsRes.status === 'fulfilled' && newsRes.value.ok && isMounted) {
           const data = await newsRes.value.json();
           const news = data.news || data.data || [];
           setNewsFeed(news);
+          
+          if (news.length > prevNewsCountRef.current && prevNewsCountRef.current > 0) {
+             setNotification({ title: 'New Scraped News', message: news[news.length - 1]?.title || news[0]?.title, type: 'news' });
+             setTimeout(() => setNotification(null), 6000);
+          }
+          prevNewsCountRef.current = news.length;
         }
       } catch (err) {
         // Backend offline during cold start
@@ -108,6 +125,22 @@ export default function MainPage() {
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden bg-canvas">
       <MainHeader currentArea="Pune District" isResponseView={false} />
+
+      {/* Global Notification Toast */}
+      {notification && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[9999] pointer-events-auto transition-all duration-300 animate-bounce">
+           <div className="bg-slate-900/95 backdrop-blur-md border border-slate-700/50 p-4 rounded-[20px] shadow-2xl flex items-center gap-4 w-[420px]">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${notification.type === 'report' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                <span className="text-xl">{notification.type === 'report' ? '📍' : '📰'}</span>
+              </div>
+              <div className="flex-1 pr-2">
+                <h4 className="text-white text-[15px] font-bold mb-0.5 tracking-wide">{notification.title}</h4>
+                <p className="text-slate-300 text-[13px] leading-tight line-clamp-2">{notification.message}</p>
+              </div>
+              <button onClick={() => setNotification(null)} className="text-slate-500 hover:text-white shrink-0 p-2 rounded-full hover:bg-slate-800 transition-colors">✕</button>
+           </div>
+        </div>
+      )}
 
       <main className="flex-1 relative w-full h-full">
         {/* Full Bleed Map Background */}

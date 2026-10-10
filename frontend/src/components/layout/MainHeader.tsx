@@ -50,12 +50,18 @@ export const MainHeader: React.FC<MainHeaderProps> = ({
             </Link>
           ) : (
             <Link
-              href="/login"
+              href="/dispatch"
               className="bg-primary text-on-primary text-[14px] font-normal rounded-pill px-[22px] py-[10px] hover:scale-95 transition-transform shadow-sm"
             >
-              Command Login
+              Command Center
             </Link>
           )}
+          <Link
+            href="/login"
+            className="text-red-500 font-semibold text-[14px] px-[18px] py-[8px] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors ml-2 border border-transparent hover:border-red-500/30 shadow-sm"
+          >
+            Logout
+          </Link>
         </div>
       </div>
     </div>

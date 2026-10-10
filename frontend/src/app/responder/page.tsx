@@ -17,10 +17,12 @@ export default function ResponderPage() {
   const [newsFeed, setNewsFeed] = useState<any[]>([]);
 
   useEffect(() => {
-    const mission = localStorage.getItem('sahayak_active_mission');
-    if (mission) {
-      setActiveMission(JSON.parse(mission));
-    }
+    try {
+      const mission = localStorage.getItem('sahayak_active_mission');
+      if (mission) {
+        setActiveMission(JSON.parse(mission));
+      }
+    } catch(e) {}
     
     // Fetch feed data
     Promise.all([
@@ -61,9 +63,9 @@ export default function ResponderPage() {
         </div>
         <button 
           onClick={() => router.push('/login')}
-          className="text-[14px] font-medium text-primary tracking-[-0.224px] hover:text-primary-focus transition-colors"
+          className="text-[14px] font-medium text-red-600 tracking-[-0.224px] hover:text-red-700 transition-colors"
         >
-          Sign Out
+          Logout
         </button>
       </header>
 

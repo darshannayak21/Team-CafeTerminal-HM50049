@@ -1,0 +1,120 @@
+{
+  "events": [
+    {
+      "id": "pune_flood_2019",
+      "name": "July 2019 Pune Floods (Mutha River Overflow)",
+      "date": "2019-07-25",
+      "hazard_type": "Flood",
+      "source": "PMC Disaster Management Cell & Pune Mirror Archives",
+      "description": "Massive urban flooding caused by 45,000 cusecs discharge from Khadakwasla Dam into the Mutha river, heavily impacting inner-city Pune areas.",
+      "affected_settlements": [
+        { "name": "Ekta Nagari & Anand Nagar", "lat": 18.4900, "lng": 73.8200, "population": 15000, "water_level_m": 2.5 },
+        { "name": "Pulachi Wadi (Deccan Gymkhana)", "lat": 18.5180, "lng": 73.8420, "population": 8500, "water_level_m": 1.8 },
+        { "name": "Shaniwar Peth Riverside", "lat": 18.5215, "lng": 73.8540, "population": 6300, "water_level_m": 1.5 },
+        { "name": "Patil Estate Slums (Shivajinagar)", "lat": 18.5320, "lng": 73.8520, "population": 4200, "water_level_m": 2.8 },
+        { "name": "Sangamwadi", "lat": 18.5350, "lng": 73.8600, "population": 12000, "water_level_m": 3.0 },
+        { "name": "Mundhwa-Kharadi Belt", "lat": 18.5400, "lng": 73.9300, "population": 25000, "water_level_m": 2.1 }
+      ],
+      "closed_roads": [
+        { "name": "Baba Bhide Bridge (Deccan Gymkhana)", "lat": 18.5150, "lng": 73.8450, "status": "closed", "reason": "Fully submerged under Mutha River" },
+        { "name": "Sambhaji Bridge (Lakdi Pul) Approach", "lat": 18.5140, "lng": 73.8470, "status": "closed", "reason": "Traffic halted due to water reaching road level" },
+        { "name": "Deccan Hanging Bridge (Z Bridge) Area", "lat": 18.5170, "lng": 73.8450, "status": "closed", "reason": "Riverside road leading to Z-bridge flooded and inaccessible" },
+        { "name": "Mhatre Bridge Riverside Road", "lat": 18.5020, "lng": 73.8350, "status": "closed", "reason": "Waterlogged approach roads" },
+        { "name": "Jayantrao Tilak Bridge", "lat": 18.5250, "lng": 73.8560, "status": "closed", "reason": "Water flowing perilously close to bridge deck" },
+        { "name": "Sinhagad Road (Anand Nagar to Vadgaon)", "lat": 18.4750, "lng": 73.8150, "status": "closed", "reason": "Red Line Inundation Buffer Reached" }
+      ]
+    },
+    {
+      "id": "pune_flash_flood_2022",
+      "name": "Sept 2022 Ambil Odha Flash Floods",
+      "date": "2022-09-11",
+      "hazard_type": "Flash Flood",
+      "source": "Sakal News & NDRF Deployment Records",
+      "description": "Severe flash flooding from intense cloudburst-like rain caused the Ambil Odha stream to breach its retaining walls in the heart of the city.",
+      "affected_settlements": [
+        { "name": "Dandekar Bridge Slums", "lat": 18.5020, "lng": 73.8480, "population": 5000, "water_level_m": 2.5 },
+        { "name": "Sahakar Nagar", "lat": 18.4870, "lng": 73.8540, "population": 12000, "water_level_m": 2.2 },
+        { "name": "Katraj", "lat": 18.4529, "lng": 73.8588, "population": 35000, "water_level_m": 1.5 },
+        { "name": "Treasure Park Society (Padmavati)", "lat": 18.4890, "lng": 73.8520, "population": 1500, "water_level_m": 3.0 }
+      ],
+      "closed_roads": [
+        { "name": "Ambil Odha Bank Road", "lat": 18.4950, "lng": 73.8500, "status": "closed", "reason": "Stream overflowed directly onto street, cars washed away" },
+        { "name": "Pune-Satara Road (Katraj to Swargate)", "lat": 18.4750, "lng": 73.8580, "status": "closed", "reason": "3 feet of standing water near Swargate junction" },
+        { "name": "Sinhagad Road Junction", "lat": 18.4980, "lng": 73.8450, "status": "closed", "reason": "Massive traffic jam and waterlogging" }
+      ]
+    },
+    {
+      "id": "urban_flood_2020",
+      "name": "October 2020 Inner-City Waterlogging",
+      "date": "2020-10-15",
+      "hazard_type": "Flood",
+      "source": "Pune Traffic Police Advisories",
+      "description": "Late monsoon heavy downpour causing severe waterlogging and gridlock across central Pune streets and underpasses.",
+      "affected_settlements": [
+        { "name": "Kothrud (Karve Nagar)", "lat": 18.5074, "lng": 73.8077, "population": 45000, "water_level_m": 1.2 },
+        { "name": "Warje Malwadi", "lat": 18.4830, "lng": 73.7950, "population": 28000, "water_level_m": 1.0 },
+        { "name": "Dattawadi", "lat": 18.5000, "lng": 73.8400, "population": 18000, "water_level_m": 2.0 }
+      ],
+      "closed_roads": [
+        { "name": "Karve Road", "lat": 18.5050, "lng": 73.8250, "status": "closed", "reason": "Waist-deep waterlogging near Garware College" },
+        { "name": "Sancheti Hospital Underpass (Shivajinagar)", "lat": 18.5290, "lng": 73.8480, "status": "closed", "reason": "Fully submerged, vehicles trapped" },
+        { "name": "Paud Road", "lat": 18.5090, "lng": 73.8100, "status": "closed", "reason": "Vehicles stranded in flood water" }
+      ]
+    },
+    {
+      "id": "malin_landslide_2014",
+      "name": "July 2014 Malin Landslide Disaster",
+      "date": "2014-07-30",
+      "hazard_type": "Landslide",
+      "source": "NDRF & Geological Survey of India (GSI)",
+      "description": "Catastrophic mudslide in Ambegaon taluka of Pune district following exceptional rainfall.",
+      "affected_settlements": [
+        { "name": "Malin Village", "lat": 19.1620, "lng": 73.6870, "population": 704, "water_level_m": 0, "landslide_risk": "Catastrophic" },
+        { "name": "Adivare", "lat": 19.1550, "lng": 73.6900, "population": 1100, "water_level_m": 0, "landslide_risk": "High" }
+      ],
+      "closed_roads": [
+        { "name": "Dimbhe Dam Approach Road", "lat": 19.1300, "lng": 73.7300, "status": "closed", "reason": "Blocked for NDRF rescue operations" },
+        { "name": "Malin-Adivare Connecting Road", "lat": 19.1600, "lng": 73.6850, "status": "closed", "reason": "Buried under mudslide debris" }
+      ]
+    },
+    {
+      "id": "pune_chronic_waterlogging_hotspots",
+      "name": "PMC Chronic Urban Flooding Hotspots Review",
+      "date": "2023-06-01",
+      "hazard_type": "Infrastructure Vulnerability",
+      "source": "PMC Smart City Audits & Stormwater Drain Reports",
+      "description": "A comprehensive map of roads and underpasses in Pune that have previously flooded multiple times due to poor drainage and topography, serving as critical watch-points for first responders.",
+      "affected_settlements": [
+        { "name": "Viman Nagar & Nagar Road", "lat": 18.5679, "lng": 73.9143, "population": 55000, "water_level_m": 0.5, "notes": "Highly prone to rapid inundation" },
+        { "name": "Kalyani Nagar (Ramwadi)", "lat": 18.5492, "lng": 73.9044, "population": 25000, "water_level_m": 0.8 },
+        { "name": "Aundh-Baner Link", "lat": 18.5580, "lng": 73.8050, "population": 30000, "water_level_m": 1.0 },
+        { "name": "Koregaon Park (North Main Road)", "lat": 18.5362, "lng": 73.8939, "population": 15000, "water_level_m": 0.6 }
+      ],
+      "closed_roads": [
+        { "name": "Swargate Underpass", "lat": 18.4990, "lng": 73.8580, "status": "warning", "reason": "Previously flooded: Chronic water accumulation point during >50mm rain" },
+        { "name": "Sancheti Hospital Grade Separator", "lat": 18.5290, "lng": 73.8480, "status": "warning", "reason": "Previously flooded: Submerges rapidly blocking Shivajinagar" },
+        { "name": "Ambedkar Chowk (Bopodi)", "lat": 18.5720, "lng": 73.8340, "status": "warning", "reason": "Previously flooded: Highway traffic completely halted in 2022" },
+        { "name": "Wagholi Highway Stretch", "lat": 18.5800, "lng": 73.9780, "status": "warning", "reason": "Previously flooded: Knee-deep water due to nullah encroachment" },
+        { "name": "Airport Road (Symbiosis Square)", "lat": 18.5710, "lng": 73.9120, "status": "warning", "reason": "Previously flooded: Recurrent 2ft waterlogging blocking airport transit" },
+        { "name": "Chandni Chowk Old Bypass", "lat": 18.5040, "lng": 73.7630, "status": "warning", "reason": "Previously flooded: Steep gradient runoff causes severe hazard" }
+      ]
+    },
+    {
+      "id": "serum_institute_fire_2021",
+      "name": "January 2021 Serum Institute Fire",
+      "date": "2021-01-21",
+      "hazard_type": "Fire",
+      "source": "Pune Fire Brigade Official Reports",
+      "description": "A massive industrial fire at the Serum Institute of India (Manjari facility) requiring city-wide emergency response and traffic cordoning.",
+      "affected_settlements": [
+        { "name": "Manjari Green / SII Campus", "lat": 18.5030, "lng": 73.9450, "population": 8000, "water_level_m": 0, "notes": "Thick smoke and toxic fumes hazard" },
+        { "name": "Hadapsar Industrial Estate", "lat": 18.5010, "lng": 73.9260, "population": 12000, "water_level_m": 0, "notes": "Evacuation standby" }
+      ],
+      "closed_roads": [
+        { "name": "Pune-Solapur Highway (Hadapsar Bypass)", "lat": 18.4980, "lng": 73.9350, "status": "closed", "reason": "Cordoned off for 15+ fire tenders to access facility" },
+        { "name": "Manjari Road", "lat": 18.5050, "lng": 73.9480, "status": "closed", "reason": "Zero visibility due to smoke" },
+        { "name": "Magarpatta South Gate Approach", "lat": 18.5130, "lng": 73.9280, "status": "warning", "reason": "Severe traffic bottleneck from diverted vehicles" }
+      ]
+    }
+  ]
+}
