@@ -7,7 +7,7 @@ import { ReportIncidentModal } from '@/components/public/ReportIncidentModal';
 import { MainMapContainer } from '@/components/map/MainMapContainer';
 import { RouteOption, GroundReport, NewsReport } from '@/types/prototype';
 
-const TEAMS_DATA = [
+const TEAMS_DATA: { id: string; name: string; base: [number, number]; type: string; color: string }[] = [
   { id: 'medical-kothrud', name: 'Medical-Kothrud Team', base: [18.5033, 73.8066], type: 'Medical', color: '#dc2626' },
   { id: 'ndrf-alpha', name: 'NDRF Alpha (Shivajinagar)', base: [18.5314, 73.8446], type: 'NDRF', color: '#ea580c' },
   { id: 'police-swargate', name: 'Swargate Police Reserve', base: [18.4991, 73.8586], type: 'Police', color: '#2563eb' },
