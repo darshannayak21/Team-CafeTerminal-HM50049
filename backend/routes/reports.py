@@ -147,7 +147,29 @@ def create_report():
         except Exception as e:
             current_app.logger.error(f"Failed to decode base64 image: {e}")
 
-    # 4. Save to Database
+    # 4. Content Fingerprint & AI Analysis (Once per new report)
+    import hashlib
+    content_fingerprint = hashlib.sha256(
+        f"{incident_type.lower()}|{str(description).strip().lower()}|{latitude:.4f}|{longitude:.4f}".encode("utf-8")
+    ).hexdigest()
+
+    # Run analysis once on ingestion
+    try:
+        from backend.services.ai_service import analyze_citizen_report
+        initial_analysis = analyze_citizen_report(
+            description=str(description).strip() if description else "",
+            category=incident_type,
+            image_path=image_url,
+        )
+        proc_status = "completed"
+        proc_at = now_iso
+    except Exception as e:
+        current_app.logger.warning(f"Initial citizen report analysis error: {e}")
+        initial_analysis = None
+        proc_status = "pending"
+        proc_at = None
+
+    # 5. Save to Database
     report_record = {
         "id": report_id,
         "incident_type": incident_type,
@@ -162,6 +184,10 @@ def create_report():
         "source": "ground_report",
         "status": "pending",
         "created_at": now_iso,
+        "processing_status": proc_status,
+        "analysis_result": initial_analysis,
+        "content_hash": content_fingerprint,
+        "processed_at": proc_at,
     }
 
     saved = save_report(report_record)

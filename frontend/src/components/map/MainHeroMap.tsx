@@ -220,21 +220,38 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
         const newsRes = await fetch('http://localhost:5000/api/news');
         if (newsRes.ok && isMounted) {
           const newsData = await newsRes.json();
-          const newsList = newsData.news || newsData.data || [];
+          const newsList = (newsData.news || newsData.data || []).slice(0, 5);
           
           if (newsLayerRef.current) {
             newsLayerRef.current.clearLayers();
 
             newsList.forEach((item: any) => {
-              if (typeof item.latitude !== 'number' || typeof item.longitude !== 'number') return;
+              if (
+                typeof item.latitude !== 'number' ||
+                typeof item.longitude !== 'number' ||
+                isNaN(item.latitude) ||
+                isNaN(item.longitude)
+              ) {
+                // Strictly do not plot items without genuine coordinates
+                return;
+              }
+
+              const geoStatus = item.geolocation_status || 'UNRESOLVED';
+              // Never plot ambiguous or unresolved articles at invented points
+              if (geoStatus !== 'VERIFIED' && geoStatus !== 'APPROXIMATE_LOCALITY') {
+                return;
+              }
+
+              const isVerified = geoStatus === 'VERIFIED';
+              const isApprox = geoStatus === 'APPROXIMATE_LOCALITY';
 
               const newsIcon = L.divIcon({
                 className: '',
                 html: `
                   <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; cursor: pointer;">
-                    <div style="position: absolute; inset: 0; background: #3b82f6; border-radius: 50%; opacity: 0.3; animation: ping 3s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-                    <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: #ffffff; border: 2.5px solid #2563eb; border-radius: 50%; box-shadow: 0 4px 12px rgba(37,99,235,0.4); color: #2563eb; font-size: 14px;">
-                      📰
+                    <div style="position: absolute; inset: 0; background: ${isVerified ? '#2563eb' : '#d97706'}; border-radius: 50%; opacity: 0.25; animation: ping 3s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+                    <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: #ffffff; border: 2.5px ${isVerified ? 'solid #2563eb' : 'dashed #d97706'}; border-radius: 50%; box-shadow: 0 4px 12px ${isVerified ? 'rgba(37,99,235,0.45)' : 'rgba(217,119,6,0.45)'}; font-size: 15px;">
+                      ${isVerified ? '📍' : '🎯'}
                     </div>
                   </div>
                 `,
@@ -244,37 +261,63 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
               });
 
               const marker = L.marker([item.latitude, item.longitude], { icon: newsIcon });
-              
+
+              const severityColor =
+                item.severity === 'CRITICAL' ? '#dc2626' :
+                item.severity === 'HIGH' ? '#ea580c' :
+                item.severity === 'LOW' ? '#16a34a' : '#2563eb';
+
               const popupHtml = `
-                <div style="font-family: system-ui, -apple-system, sans-serif; min-width: 250px; max-width: 320px; padding: 8px; color: #0f172a;">
-                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                    <span style="font-size: 10px; font-weight: 800; color: #1e40af; background: #dbeafe; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">
-                      NEWS
+                <div style="font-family: system-ui, -apple-system, sans-serif; min-width: 270px; max-width: 340px; padding: 10px; color: #0f172a;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 4px;">
+                    <span style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; padding: 3px 6px; border-radius: 4px; ${
+                      isVerified
+                        ? 'color: #1e40af; background: #dbeafe; border: 1px solid #bfdbfe;'
+                        : 'color: #92400e; background: #fef3c7; border: 1px solid #fde68a;'
+                    }">
+                      ${isVerified ? '✓ VERIFIED INCIDENT POINT' : '⚠ APPROXIMATE LOCALITY'}
                     </span>
-                    <span style="font-size: 10px; color: #64748b;">
-                      ${new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <span style="font-size: 9.5px; font-weight: 800; color: ${severityColor}; background: #f8fafc; border: 1px solid #e2e8f0; padding: 2px 6px; border-radius: 4px;">
+                      ${item.severity || 'MEDIUM'}
                     </span>
                   </div>
 
-                  <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">
+                  <div style="font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 4px; line-height: 1.3;">
                     ${item.title}
                   </div>
 
-                  <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">
-                    ${item.location_name || 'Pune District'}
+                  <div style="font-size: 11px; color: #475569; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
+                    <span>📍 <strong>${item.extracted_location || item.location_name || 'Pune District'}</strong></span>
+                    <span style="color: #94a3b8;">·</span>
+                    <span style="color: #64748b;">${Number(item.latitude).toFixed(4)}°N, ${Number(item.longitude).toFixed(4)}°E</span>
                   </div>
 
-                  <div style="font-size: 13px; color: #334155; line-height: 1.4; border-top: 1px solid #e2e8f0; padding-top: 8px; margin-bottom: 8px;">
+                  ${item.location_evidence ? `
+                    <div style="font-size: 11px; color: #334155; line-height: 1.35; background: #f8fafc; border-left: 3px solid #3b82f6; padding: 6px 8px; border-radius: 0 4px 4px 0; margin-bottom: 8px;">
+                      <span style="font-weight: 700; color: #1e293b; font-size: 10px; display: block; text-transform: uppercase; margin-bottom: 2px;">Location Evidence:</span>
+                      "${item.location_evidence}"
+                    </div>
+                  ` : ''}
+
+                  <div style="font-size: 12px; color: #334155; line-height: 1.4; border-top: 1px solid #e2e8f0; padding-top: 6px; margin-bottom: 8px;">
                     ${item.description}
                   </div>
 
-                  <div style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #64748b; background: #f8fafc; padding: 4px 8px; border-radius: 4px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10.5px; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 4px;">
                     <span>Source: <strong>${item.source || 'News'}</strong></span>
+                    <span>${new Date(item.timestamp || item.published_at).toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
+                  ${item.url ? `
+                    <div style="text-align: right; margin-top: 6px;">
+                      <a href="${item.url}" target="_blank" rel="noopener noreferrer" style="font-size: 11px; color: #2563eb; font-weight: 700; text-decoration: none;">
+                        Open Source Article ↗
+                      </a>
+                    </div>
+                  ` : ''}
                 </div>
               `;
 
-              marker.bindPopup(popupHtml, { maxWidth: 340 });
+              marker.bindPopup(popupHtml, { maxWidth: 360 });
               marker.addTo(newsLayerRef.current!);
             });
           }

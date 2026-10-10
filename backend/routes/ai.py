@@ -52,8 +52,26 @@ def api_explain_hazard():
 
 @ai_bp.route("/api/ai/analyze-report", methods=["POST"])
 def api_analyze_report():
-    """Analyze and verify citizen disaster report with AI."""
+    """Analyze and verify citizen disaster report with AI.
+
+    Reuses stored analysis if report_id has already been analyzed, unless force_reprocess is True.
+    """
+    from backend.services.db import get_report_by_id, update_report_analysis
+
     payload = request.get_json(silent=True) or {}
+    report_id = payload.get("report_id")
+    force_reprocess = bool(payload.get("force_reprocess", False))
+
+    if report_id and not force_reprocess:
+        existing = get_report_by_id(report_id)
+        if existing and existing.get("analysis_result"):
+            return jsonify({
+                "success": True,
+                "data": existing["analysis_result"],
+                "cached": True,
+                "processing_status": existing.get("processing_status", "completed"),
+            })
+
     description = payload.get("description", "")
     category = payload.get("category", "flood")
     image_path = payload.get("image_path")
@@ -64,6 +82,16 @@ def api_analyze_report():
             category=category,
             image_path=image_path,
         )
-        return jsonify({"success": True, "data": result})
+
+        if report_id:
+            update_report_analysis(report_id, result, processing_status="completed")
+
+        return jsonify({
+            "success": True,
+            "data": result,
+            "cached": False,
+            "processing_status": "completed",
+        })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+

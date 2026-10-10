@@ -30,7 +30,7 @@ export default function ResponderPage() {
       fetch('http://localhost:5000/api/news').then(res => res.json()).catch(() => ({ data: [] }))
     ]).then(([reportsRes, newsRes]) => {
       setGroundReports(reportsRes.data || []);
-      setNewsFeed(newsRes.data || []);
+      setNewsFeed((newsRes.news || newsRes.data || []).slice(0, 5));
       setIsLoaded(true);
     });
 
@@ -130,23 +130,51 @@ export default function ResponderPage() {
               {/* TAB 2: News Feed */}
               {feedTab === 'news' && (
                 <div className="flex-1 overflow-y-auto space-y-3 pr-1" style={{ scrollbarWidth: 'thin' }}>
-                  {newsFeed.map((item) => (
-                    <div key={item.id} className="bg-white border border-slate-200 rounded-lg p-3 shadow-xs">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-[10px] font-bold uppercase text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">{item.source}</span>
-                        <span className="text-[10px] text-slate-400">{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  {newsFeed.map((item) => {
+                    const geoStatus = item.geolocation_status || 'UNRESOLVED';
+                    const isVerified = geoStatus === 'VERIFIED';
+                    const isApprox = geoStatus === 'APPROXIMATE_LOCALITY';
+
+                    return (
+                      <div key={item.id} className="bg-white border border-slate-200 rounded-lg p-3 shadow-xs">
+                        <div className="flex justify-between items-start mb-2 gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold uppercase text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">{item.source || 'News'}</span>
+                            <span className="text-[9.5px] font-bold uppercase text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">{item.severity || 'MEDIUM'}</span>
+                          </div>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${
+                            isVerified
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                              : isApprox
+                              ? 'bg-amber-50 text-amber-800 border-amber-300'
+                              : 'bg-slate-100 text-slate-600 border-slate-200'
+                          }`}>
+                            {isVerified ? '✓ Verified' : isApprox ? '⚠ Approx' : 'Unlocated'}
+                          </span>
+                        </div>
+                        <h4 className="text-[13px] font-bold text-slate-900 mb-1">{item.title}</h4>
+                        <div className="text-[11px] text-slate-500 mb-1.5">
+                          📍 <strong>{item.extracted_location || item.location_name || 'Pune District'}</strong>
+                        </div>
+                        <p className="text-[12px] text-slate-600 mb-2 line-clamp-3">{item.description}</p>
+                        <div className="flex items-center justify-between text-[10px] border-t border-slate-100 pt-1.5 text-slate-400">
+                          <span>{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          {item.url ? (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] font-bold text-blue-600 hover:underline"
+                            >
+                              Open Source Article ↗
+                            </a>
+                          ) : (
+                            <span className="italic">Report Filed</span>
+                          )}
+                        </div>
                       </div>
-                      <h4 className="text-[14px] font-bold text-slate-900 mb-1">{item.title}</h4>
-                      <p className="text-[12px] text-slate-600 mb-2">{item.description}</p>
-                      <button
-                        type="button"
-                        onClick={() => alert("Redirecting to news source: " + item.source)}
-                        className="text-[11px] font-bold text-blue-600 hover:underline"
-                      >
-                        View Full Report →
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {newsFeed.length === 0 && <p className="text-center text-slate-500 text-sm mt-10">No recent news.</p>}
                 </div>
               )}

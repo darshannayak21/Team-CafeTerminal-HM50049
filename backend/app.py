@@ -46,6 +46,15 @@ def create_app(config_class: type[Config] | None = None) -> Flask:
     app.register_blueprint(ai_bp)
     app.register_blueprint(replay_bp)
 
+    # Start background news ingestion worker if not in test mode
+    if not app.config.get("TESTING", False):
+        try:
+            from backend.services.news_service import start_background_ingestion
+            interval = int(app.config.get("NEWS_INGESTION_INTERVAL_SECONDS", 600))
+            start_background_ingestion(interval_seconds=interval)
+        except Exception as e:
+            app.logger.warning(f"Could not start background news ingestion: {e}")
+
     return app
 
 

@@ -66,6 +66,7 @@ export default function MainPage() {
   // Live Ground Reports and News Feed State
   const [groundReports, setGroundReports] = useState<GroundReport[]>([]);
   const [newsFeed, setNewsFeed] = useState<NewsReport[]>([]);
+  const [operationalMetrics, setOperationalMetrics] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'ground' | 'simulated'>('ground');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   
@@ -74,15 +75,16 @@ export default function MainPage() {
   const prevReportsCountRef = useRef(0);
   const prevNewsCountRef = useRef(0);
 
-  // Poll Backend for Live Ground Reports & Simulated News
+  // Poll Backend for Live Ground Reports, Database-Backed News, and Operational Stats
   useEffect(() => {
     let isMounted = true;
 
     const fetchData = async () => {
       try {
-        const [reportsRes, newsRes] = await Promise.allSettled([
+        const [reportsRes, newsRes, statsRes] = await Promise.allSettled([
           fetch('http://localhost:5000/api/reports'),
           fetch('http://localhost:5000/api/news'),
+          fetch('http://localhost:5000/api/news/stats'),
         ]);
 
         if (reportsRes.status === 'fulfilled' && reportsRes.value.ok && isMounted) {
@@ -99,14 +101,19 @@ export default function MainPage() {
 
         if (newsRes.status === 'fulfilled' && newsRes.value.ok && isMounted) {
           const data = await newsRes.value.json();
-          const news = data.news || data.data || [];
+          const news = (data.news || data.data || []).slice(0, 5);
           setNewsFeed(news);
           
           if (news.length > prevNewsCountRef.current && prevNewsCountRef.current > 0) {
-             setNotification({ title: 'New Scraped News', message: news[news.length - 1]?.title || news[0]?.title, type: 'news' });
+             setNotification({ title: 'New Disaster Alert Ingested', message: news[news.length - 1]?.title || news[0]?.title, type: 'news' });
              setTimeout(() => setNotification(null), 6000);
           }
           prevNewsCountRef.current = news.length;
+        }
+
+        if (statsRes.status === 'fulfilled' && statsRes.value.ok && isMounted) {
+          const sData = await statsRes.value.json();
+          setOperationalMetrics(sData.metrics || sData.data || null);
         }
       } catch (err) {
         // Backend offline during cold start
@@ -345,7 +352,7 @@ export default function MainPage() {
                             const missionData = {
                               title: report.incident_type,
                               description: report.description || 'Respond to field incident immediately.',
-                              population: (report.description?.toLowerCase().includes('suncity') || report.incident_type?.toLowerCase().includes('collapse')) ? 'Over 100 lives at risk/affected' : 'Unknown',
+                              population: (report.analysis_result && report.analysis_result.estimated_lives_at_risk) ? report.analysis_result.estimated_lives_at_risk : 'Unknown (Requires Field Assessment)',
                               brief: [
                                 `Reported location: ${report.location_name || 'Field coordinates'}`,
                                 `Incident type: ${report.incident_type}`,
@@ -405,56 +412,184 @@ export default function MainPage() {
 
             {/* TAB 2: News Feed */}
             {activeTab === 'simulated' && (
-              <div className="flex-1 overflow-y-auto space-y-3 pr-1" style={{ scrollbarWidth: 'thin' }}>
-                {newsFeed.map((item) => (
-                  <div
-                    key={item.id}
-                    className="text-left w-full bg-white hover:bg-slate-50 border border-slate-200/80 rounded-lg p-3 transition-colors shadow-xs"
-                  >
-                    <div className="flex items-start gap-2">
-                      <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-black text-sm flex items-center justify-center shrink-0 mt-0.5">
-                        📰
+              <div className="flex-1 flex flex-col overflow-hidden space-y-2">
+                {/* Operational Visibility Metrics Header */}
+                {operationalMetrics && (
+                  <div className="bg-slate-900 text-white p-2.5 rounded-lg text-[11px] shrink-0 border border-slate-800 shadow-xs">
+                    <div className="flex items-center justify-between mb-1.5 font-bold tracking-wide text-slate-300">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        LIVE INGESTION & GEOLOCATION PIPELINE
+                      </span>
+                      <span className="text-[10px] text-slate-400">DB-Backed</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-1.5 text-center text-[10px]">
+                      <div className="bg-slate-800/80 p-1 rounded">
+                        <div className="text-slate-400">Total News</div>
+                        <div className="font-bold text-white text-[12px]">{operationalMetrics.total_persisted_articles || newsFeed.length}</div>
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                            {item.source || 'News'}
-                          </span>
-                          <span className="text-[10px] text-slate-400">
-                            {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <div className="bg-emerald-950/60 border border-emerald-800/40 p-1 rounded">
+                        <div className="text-emerald-400">Verified</div>
+                        <div className="font-bold text-emerald-300 text-[12px]">{operationalMetrics.verified_locations || 0}</div>
+                      </div>
+                      <div className="bg-amber-950/60 border border-amber-800/40 p-1 rounded">
+                        <div className="text-amber-400">Approx</div>
+                        <div className="font-bold text-amber-300 text-[12px]">{operationalMetrics.approximate_locations || 0}</div>
+                      </div>
+                      <div className="bg-slate-800/80 p-1 rounded">
+                        <div className="text-slate-400">Unlocated</div>
+                        <div className="font-bold text-slate-300 text-[12px]">{operationalMetrics.unresolved_locations || 0}</div>
+                      </div>
+                    </div>
+                    <div className="mt-1.5 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[9.5px] text-slate-400">
+                      <span>LLM Requests: <strong className="text-slate-200">{operationalMetrics.llm_requests_made || 0}</strong></span>
+                      <span>Geo Cache Hits: <strong className="text-slate-200">{operationalMetrics.geocoding_cache_hits || 0}</strong></span>
+                    </div>
+                  </div>
+                )}
+
+                {/* News Items List */}
+                <div className="flex-1 overflow-y-auto space-y-2.5 pr-1" style={{ scrollbarWidth: 'thin' }}>
+                  {newsFeed.map((item) => {
+                    const geoStatus = item.geolocation_status || 'UNRESOLVED';
+                    const hasValidCoords =
+                      typeof item.latitude === 'number' &&
+                      typeof item.longitude === 'number' &&
+                      !isNaN(item.latitude) &&
+                      !isNaN(item.longitude);
+
+                    const isVerified = geoStatus === 'VERIFIED';
+                    const isApprox = geoStatus === 'APPROXIMATE_LOCALITY';
+                    const isAmbiguous = geoStatus === 'AMBIGUOUS';
+
+                    const severityBadgeClass =
+                      item.severity === 'CRITICAL'
+                        ? 'bg-red-50 text-red-700 border-red-200'
+                        : item.severity === 'HIGH'
+                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : item.severity === 'LOW'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-blue-50 text-blue-700 border-blue-200';
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="text-left w-full bg-white hover:bg-slate-50 border border-slate-200/90 rounded-lg p-3 transition-colors shadow-xs"
+                      >
+                        {/* Header Badges */}
+                        <div className="flex items-center justify-between mb-1.5 gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wide bg-slate-100 px-1.5 py-0.5 rounded">
+                              {item.source || 'News'}
+                            </span>
+                            <span className={`text-[9.5px] font-bold border px-1.5 py-0.5 rounded uppercase ${severityBadgeClass}`}>
+                              {item.severity || 'MEDIUM'}
+                            </span>
+                          </div>
+
+                          {/* Geolocation Status Badge */}
+                          <span
+                            className={`text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${
+                              isVerified
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                : isApprox
+                                ? 'bg-amber-50 text-amber-800 border-amber-300'
+                                : isAmbiguous
+                                ? 'bg-purple-50 text-purple-800 border-purple-300'
+                                : 'bg-slate-100 text-slate-600 border-slate-300'
+                            }`}
+                          >
+                            {isVerified
+                              ? '✓ Verified Location'
+                              : isApprox
+                              ? '⚠ Approx Locality'
+                              : isAmbiguous
+                              ? '? Ambiguous'
+                              : '✕ Unlocated'}
                           </span>
                         </div>
-                        <h4 className="text-[13px] font-bold text-slate-900 leading-tight mb-1">
+
+                        {/* Title */}
+                        <h4 className="text-[13px] font-bold text-slate-900 leading-snug mb-1">
                           {item.title}
                         </h4>
-                        <p className="text-[12px] text-slate-600 leading-relaxed mb-1.5">
+
+                        {/* Extracted Location and Coordinates */}
+                        <div className="text-[11px] text-slate-500 mb-1.5 flex items-center gap-1.5">
+                          <span>📍</span>
+                          <strong className="text-slate-700">
+                            {item.extracted_location || item.location_name || 'Unspecified Area'}
+                          </strong>
+                          {hasValidCoords && (
+                            <span className="text-slate-400 text-[10px]">
+                              ({Number(item.latitude).toFixed(4)}°N, {Number(item.longitude).toFixed(4)}°E)
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Location Evidence Snippet */}
+                        {item.location_evidence && (
+                          <div className="text-[11px] text-slate-600 bg-slate-50 border-l-2 border-blue-500 px-2 py-1 rounded-r mb-1.5 line-clamp-2 italic">
+                            <span className="font-semibold text-slate-700 not-italic">Evidence: </span>
+                            "{item.location_evidence}"
+                          </div>
+                        )}
+
+                        {/* Description */}
+                        <p className="text-[12px] text-slate-600 leading-relaxed mb-2 line-clamp-3">
                           {item.description}
                         </p>
-                        {item.latitude && item.longitude && (
-                          <div className="flex items-center justify-between text-[10px] border-t border-slate-100 pt-1.5 mt-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                alert("Redirecting to news source: " + item.source);
-                              }}
-                              className="text-slate-500 font-bold hover:text-slate-700 flex items-center gap-1"
+
+                        {/* Lives at Risk Box */}
+                        {item.analysis_result && item.analysis_result.estimated_lives_at_risk && (
+                          <div className="mb-2 inline-flex items-center gap-1.5 bg-red-50 border border-red-200 text-red-700 px-2 py-1 rounded">
+                            <span className="text-[10px] font-bold tracking-wide uppercase">Lives at Risk:</span>
+                            <span className="text-[11px] font-extrabold">{item.analysis_result.estimated_lives_at_risk}</span>
+                          </div>
+                        )}
+
+                        {/* Card Footer Actions */}
+                        <div className="flex items-center justify-between text-[10px] border-t border-slate-100 pt-2 mt-1">
+                          {item.url ? (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-slate-500 font-bold hover:text-slate-800 flex items-center gap-1"
                             >
-                              <span>View Full Report</span>
+                              <span>Original Article</span>
                               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                            </button>
+                            </a>
+                          ) : (
+                            <span className="text-slate-400">
+                              {new Date(item.timestamp || item.published_at || Date.now()).toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+
+                          {hasValidCoords && (isVerified || isApprox) ? (
                             <button
                               type="button"
                               onClick={() => setFocusLocation([item.latitude!, item.longitude!])}
-                              className="text-blue-600 font-bold hover:underline"
+                              className="text-blue-600 font-bold hover:underline flex items-center gap-1"
                             >
-                              Focus Map →
+                              <span>Focus Map</span>
+                              <span>→</span>
                             </button>
-                          </div>
-                        )}
+                          ) : (
+                            <span className="text-slate-400 italic text-[9.5px]">
+                              {isAmbiguous ? 'Ambiguous Location' : 'No GPS Coordinates'}
+                            </span>
+                          )}
+                        </div>
                       </div>
+                    );
+                  })}
+                  {newsFeed.length === 0 && (
+                    <div className="text-center text-slate-400 text-xs py-10">
+                      No ingested news articles available.
                     </div>
-                  </div>
-                ))}
+                  )}
+                </div>
               </div>
             )}
 

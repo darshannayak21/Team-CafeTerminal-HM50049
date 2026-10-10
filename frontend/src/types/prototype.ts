@@ -84,13 +84,44 @@ export interface NewsReport {
   title: string;
   description: string;
   source: string;
-  category: string;
+  category?: string;
   location_name?: string | null;
+  extracted_location?: string | null;
+  location_evidence?: string | null;
+  administrative_area?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  geolocation_status?: 'VERIFIED' | 'APPROXIMATE_LOCALITY' | 'AMBIGUOUS' | 'UNRESOLVED' | string;
+  geolocation_source?: string | null;
+  geolocation_matched_name?: string | null;
+  processing_status?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | string;
+  processed_at?: string | null;
+  retry_count?: number;
+  severity?: RiskSeverity | string;
   timestamp: string;
-  is_simulated: boolean | number;
-  badge: string;
-  created_at: string;
+  published_at?: string;
+  url?: string;
+  is_simulated?: boolean | number;
+  badge?: string;
+  created_at?: string;
+  analysis_result?: any;
 }
+
+export interface OperationalMetrics {
+  articles_fetched: number;
+  new_articles_discovered: number;
+  duplicate_articles_skipped: number;
+  llm_requests_made: number;
+  successfully_processed_articles: number;
+  failed_processing_jobs: number;
+  geocoding_requests: number;
+  geocoding_cache_hits: number;
+  verified_locations: number;
+  approximate_locations: number;
+  ambiguous_locations: number;
+  unresolved_locations: number;
+  total_persisted_articles: number;
+  processing_breakdown?: Record<string, number>;
+}
+
 
