@@ -73,6 +73,8 @@ def init_db() -> None:
             cursor.execute("ALTER TABLE reports ADD COLUMN content_hash TEXT")
         if "processed_at" not in report_columns:
             cursor.execute("ALTER TABLE reports ADD COLUMN processed_at TEXT")
+        if "estimated_population_1km" not in report_columns:
+            cursor.execute("ALTER TABLE reports ADD COLUMN estimated_population_1km REAL")
 
         # 2. News Table
         cursor.execute(
@@ -120,6 +122,7 @@ def init_db() -> None:
             "analysis_result": "TEXT",
             "error_message": "TEXT",
             "updated_at": "TEXT",
+            "estimated_population_1km": "REAL",
         }
 
         for field_name, field_type in extended_fields.items():
@@ -454,6 +457,7 @@ def complete_article_processing(
     geolocation_matched_name: Optional[str],
     severity: str,
     analysis_result: Dict[str, Any],
+    estimated_population_1km: Optional[float] = None,
 ) -> None:
     """Store complete processed extraction and geocoding result."""
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -478,6 +482,7 @@ def complete_article_processing(
                 location_name = ?,
                 severity = ?,
                 analysis_result = ?,
+                estimated_population_1km = ?,
                 error_message = NULL,
                 updated_at = ?
             WHERE id = ?
@@ -496,6 +501,7 @@ def complete_article_processing(
                 extracted_location or geolocation_matched_name or "Unspecified Location",
                 severity,
                 analysis_json,
+                estimated_population_1km,
                 now_iso,
                 article_id,
             ),
@@ -598,8 +604,9 @@ def save_report(report_data: Dict[str, Any]) -> Dict[str, Any]:
                 id, incident_type, description, image_url, image_filename,
                 latitude, longitude, accuracy, location_name,
                 timestamp, source, status, created_at,
-                processing_status, analysis_result, content_hash, processed_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                processing_status, analysis_result, content_hash, processed_at,
+                estimated_population_1km
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 report_data["id"],
@@ -619,6 +626,7 @@ def save_report(report_data: Dict[str, Any]) -> Dict[str, Any]:
                 json.dumps(report_data.get("analysis_result")) if report_data.get("analysis_result") else None,
                 report_data.get("content_hash"),
                 report_data.get("processed_at"),
+                report_data.get("estimated_population_1km"),
             ),
         )
         conn.commit()

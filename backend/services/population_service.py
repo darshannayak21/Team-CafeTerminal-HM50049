@@ -10,12 +10,15 @@ import math
 import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import numpy as np
-import rasterio
-import rasterio.mask
-import rasterio.warp
-from shapely.geometry import shape, mapping
-from shapely.ops import transform as shapely_transform
+try:
+    import numpy as np
+    import rasterio
+    import rasterio.mask
+    import rasterio.warp
+    from shapely.geometry import shape, mapping, Point
+    from shapely.ops import transform as shapely_transform
+except ImportError:
+    pass
 
 from backend.models.schemas import Settlement
 
@@ -69,7 +72,7 @@ def verify_raster_dataset(raster_path: str) -> Dict[str, Any]:
 
 
 def aggregate_polygon_population(
-    raster_source: Union[str, rasterio.io.DatasetReader],
+    raster_source: Union[str, Any],
     geometry: Union[Dict[str, Any], Any],
     geom_crs: str = "EPSG:4326",
 ) -> float:
@@ -299,3 +302,54 @@ def process_and_save_pune_settlements(
         json.dump(payload, f, indent=2)
 
     return settlements
+
+
+def estimate_population_in_radius(
+    lat: float, 
+    lon: float, 
+    radius_km: float = 1.0, 
+    raster_path: Optional[str] = None
+) -> Optional[float]:
+    """Estimate the population within a circular radius of a coordinate.
+
+    Creates a circular buffer around the point and aggregates the population
+    raster cells intersecting that area.
+
+    Args:
+        lat: Latitude of the center point.
+        lon: Longitude of the center point.
+        radius_km: Radius of the circle in kilometers (default: 1.0).
+        raster_path: Optional path to the WorldPop raster. If not provided,
+                     attempts to locate it in the standard data directory.
+
+    Returns:
+        Estimated population count as a float, or None if population data is unavailable.
+    """
+    if raster_path is None:
+        from backend.config import Config
+        raster_path = os.path.join(Config.DATA_DIR, "ind_ppp_2020_1km_ASCII_XYZ.tif")
+        
+    if not os.path.exists(raster_path):
+        import logging
+        logging.getLogger(__name__).warning(f"Population data unavailable: Raster not found at {raster_path}")
+        return None
+
+    if 'Point' not in globals():
+        return None
+        
+    try:
+        # Approximate conversion: 1 degree latitude is ~111.32 km.
+        # Longitude scaling depends on latitude, but for a 1km rough estimate, this buffer is acceptable.
+        buffer_degrees = radius_km / 111.32
+        
+        # Create a circle geometry in EPSG:4326
+        center_point = Point(lon, lat)
+        circle_poly = center_point.buffer(buffer_degrees)
+        
+        # Reuse existing robust raster aggregation logic
+        pop_count = aggregate_polygon_population(raster_path, circle_poly, geom_crs="EPSG:4326")
+        return round(pop_count, 1)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to estimate population in radius: {e}")
+        return None

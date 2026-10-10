@@ -78,6 +78,7 @@ export interface GroundReport {
   status: 'pending' | 'verified' | 'rejected' | string;
   created_at: string;
   analysis_result?: any;
+  estimated_population_1km?: number | null;
 }
 
 export interface NewsReport {
@@ -106,6 +107,7 @@ export interface NewsReport {
   badge?: string;
   created_at?: string;
   analysis_result?: any;
+  estimated_population_1km?: number | null;
 }
 
 export interface OperationalMetrics {

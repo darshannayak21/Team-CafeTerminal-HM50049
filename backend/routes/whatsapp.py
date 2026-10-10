@@ -11,6 +11,7 @@ from backend.config import get_config
 from backend.services.ai_service import analyze_citizen_report, extract_news_location_and_hazard
 from backend.services.geocoding_service import geocode_location
 from backend.services.db import save_report, get_report_by_id
+from backend.services.population_service import estimate_population_in_radius
 
 whatsapp_bp = Blueprint("whatsapp", __name__)
 
@@ -153,6 +154,11 @@ def twilio_webhook():
     if not is_relevant:
         return respond_with_twiml("Thank you, but this report doesn't appear to be related to a disaster.")
 
+    # 5b. Population Estimation
+    estimated_pop = None
+    if latitude is not None and longitude is not None:
+        estimated_pop = estimate_population_in_radius(latitude, longitude, radius_km=1.0)
+
     # 6. Persistence
     now_iso = datetime.now(timezone.utc).isoformat()
     
@@ -173,6 +179,7 @@ def twilio_webhook():
         "processing_status": "processed",
         "analysis_result": initial_analysis,
         "content_hash": None,
+        "estimated_population_1km": estimated_pop,
     }
     
     try:

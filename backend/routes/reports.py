@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 
 from backend.config import get_config
 from backend.services.db import get_all_reports, get_report_by_id, save_report
+from backend.services.population_service import estimate_population_in_radius
 
 reports_bp = Blueprint("reports", __name__)
 
@@ -169,6 +170,11 @@ def create_report():
         proc_status = "pending"
         proc_at = None
 
+    # 4.5 Estimate population affected
+    estimated_pop = None
+    if latitude is not None and longitude is not None:
+        estimated_pop = estimate_population_in_radius(latitude, longitude, radius_km=1.0)
+
     # 5. Save to Database
     report_record = {
         "id": report_id,
@@ -188,6 +194,7 @@ def create_report():
         "analysis_result": initial_analysis,
         "content_hash": content_fingerprint,
         "processed_at": proc_at,
+        "estimated_population_1km": estimated_pop,
     }
 
     saved = save_report(report_record)

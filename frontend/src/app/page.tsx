@@ -290,6 +290,21 @@ export default function MainPage() {
                         </p>
                       ) : null}
 
+                      {/* Population Estimation */}
+                      <div className="bg-slate-50 rounded-md border border-slate-100 px-2 py-1.5 flex items-center gap-2 mb-2">
+                        <span className="text-[14px]">👥</span>
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Estimated population nearby</span>
+                          {report.estimated_population_1km !== null && report.estimated_population_1km !== undefined ? (
+                            <span className="text-[12px] font-semibold text-slate-800">
+                              Within 1 km: {report.estimated_population_1km.toLocaleString()} people
+                            </span>
+                          ) : (
+                            <span className="text-[12px] font-medium text-slate-500 italic">Population data unavailable</span>
+                          )}
+                        </div>
+                      </div>
+
                       {/* Dispatch controls */}
                       {routeForReport ? (
                         <div className="flex items-center gap-2 mb-2 mt-2 pt-2 border-t border-slate-100">
@@ -586,6 +601,21 @@ export default function MainPage() {
                         <p className="text-[12px] text-slate-600 leading-relaxed mb-2 line-clamp-3">
                           {item.description}
                         </p>
+
+                        {/* Population Estimation */}
+                        <div className="bg-slate-50 rounded-md border border-slate-100 px-2 py-1.5 flex items-center gap-2 mb-2">
+                          <span className="text-[14px]">👥</span>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Estimated population nearby</span>
+                            {item.estimated_population_1km !== null && item.estimated_population_1km !== undefined ? (
+                              <span className="text-[12px] font-semibold text-slate-800">
+                                Within 1 km: {item.estimated_population_1km.toLocaleString()} people
+                              </span>
+                            ) : (
+                              <span className="text-[12px] font-medium text-slate-500 italic">Population data unavailable</span>
+                            )}
+                          </div>
+                        </div>
 
                         {/* Lives at Risk Box */}
                         {item.analysis_result && item.analysis_result.estimated_lives_at_risk && (

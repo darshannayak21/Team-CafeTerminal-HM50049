@@ -27,6 +27,7 @@ from bs4 import BeautifulSoup
 
 from backend.services.ai_service import extract_news_location_and_hazard
 from backend.services.geocoding_service import geocode_location
+from backend.services.population_service import estimate_population_in_radius
 from backend.services.db import (
     claim_article_for_processing,
     complete_article_processing,
@@ -466,6 +467,11 @@ def process_single_article(article: Dict[str, Any]) -> bool:
             matched_name = geo_result.get("matched_name")
             geo_source = geo_result.get("provider", "osm_nominatim")
 
+        # 4.5 Estimate Population
+        estimated_pop = None
+        if latitude is not None and longitude is not None:
+            estimated_pop = estimate_population_in_radius(latitude, longitude, radius_km=1.0)
+
         # 5. Save Completed State to SQLite
         complete_article_processing(
             article_id=article_id,
@@ -480,6 +486,7 @@ def process_single_article(article: Dict[str, Any]) -> bool:
             geolocation_matched_name=matched_name,
             severity=severity,
             analysis_result=extracted,
+            estimated_population_1km=estimated_pop,
         )
 
         increment_metric("successfully_processed_articles")

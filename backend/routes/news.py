@@ -59,6 +59,7 @@ def list_news():
             "retry_count": item.get("retry_count", 0),
             "error_message": item.get("error_message"),
             "analysis_result": analysis,
+            "estimated_population_1km": item.get("estimated_population_1km"),
         })
 
     return jsonify({
