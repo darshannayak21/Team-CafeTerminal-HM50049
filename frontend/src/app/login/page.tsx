@@ -44,13 +44,28 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-canvas-parchment font-sans px-4">
+    <div className="relative min-h-screen flex flex-col items-center justify-center font-sans px-4 overflow-hidden">
+      {/* Background Video */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover z-0"
+      >
+        <source src="/loginvideo.mp4" type="video/mp4" />
+      </video>
+
+      {/* Light translucent overlay for clean Apple aesthetic */}
+      <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] z-0"></div>
+
       {/* Brand Header */}
-      <div className="absolute top-0 left-0 w-full h-[44px] bg-surface-black text-on-dark flex items-center justify-center">
+      <div className="absolute top-0 left-0 w-full h-[44px] bg-surface-black/90 backdrop-blur-md text-on-dark flex items-center justify-center z-10">
         <span className="text-[12px] font-semibold tracking-[-0.12px]">SAHAYAK SECURE PORTAL</span>
       </div>
 
-      <div className="w-full max-w-[440px] bg-canvas p-10 md:p-12 rounded-[18px] shadow-sm border border-hairline mt-8">
+      {/* Login Form Container */}
+      <div className="relative z-10 w-full max-w-[440px] bg-white/80 backdrop-blur-xl p-10 md:p-12 rounded-[24px] shadow-2xl border border-white/60 mt-8">
         <div className="text-center mb-10">
           <h1 className="text-[34px] font-semibold text-ink tracking-[-0.374px] leading-[1.1] mb-2">
             Secure Login

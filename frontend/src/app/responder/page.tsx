@@ -278,7 +278,6 @@ export default function ResponderPage() {
             <ResponderMap 
               route={activeMission ? activeMission.route : []} 
               reports={groundReports} 
-              news={newsFeed}
               etaMinutes={activeMission?.duration_minutes}
               distanceKm={activeMission?.distance_km}
               riskScore={activeMission?.risk_score}

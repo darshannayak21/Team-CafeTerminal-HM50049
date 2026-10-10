@@ -30,12 +30,14 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
   const [showTalukas, setShowTalukas] = React.useState(false);
   const [showElevationLayer, setShowElevationLayer] = React.useState(false);
   const [showStations, setShowStations] = React.useState(false);
+  const [showTraffic, setShowTraffic] = React.useState(false);
   const [isLegendOpen, setIsLegendOpen] = React.useState(false);
   
   const incidentLayerRef = useRef<L.LayerGroup | null>(null);
   const polygonLayerRef = useRef<L.LayerGroup | null>(null);
   const groundReportsLayerRef = useRef<L.LayerGroup | null>(null);
   const newsLayerRef = useRef<L.LayerGroup | null>(null);
+  const trafficLayerRef = useRef<L.LayerGroup | null>(null);
   
   const wardsLayerRef = useRef<L.Layer | null>(null);
   const worldPopLayerRef = useRef<L.Layer | null>(null);
@@ -80,6 +82,7 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
     const groundReportsLayer = L.layerGroup().addTo(map);
     const newsLayer = L.layerGroup().addTo(map);
     const historicalLayer = L.layerGroup().addTo(map);
+    const trafficLayer = L.layerGroup().addTo(map);
 
     polygonLayerRef.current = polygonLayer;
     routeLayerRef.current = routeLayer;
@@ -87,6 +90,7 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
     groundReportsLayerRef.current = groundReportsLayer;
     newsLayerRef.current = newsLayer;
     historicalLayerRef.current = historicalLayer;
+    trafficLayerRef.current = trafficLayer;
 
     mapInstanceRef.current = map;
 
@@ -110,7 +114,7 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
           }).addTo(radarLayerGroup);
         }
       })
-      .catch(err => console.error('Failed to load RainViewer data:', err));
+      .catch(err => console.warn('Failed to load RainViewer data (likely blocked by adblock or CORS):', err));
 
     elevationLayerRef.current = L.layerGroup();
     stationsLayerRef.current = L.layerGroup();
@@ -216,112 +220,7 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
           }
         }
 
-        // 2. Fetch News Item (Navale Bridge Traffic Disruption)
-        const newsRes = await fetch('http://localhost:5000/api/news');
-        if (newsRes.ok && isMounted) {
-          const newsData = await newsRes.json();
-          const newsList = (newsData.news || newsData.data || []).slice(0, 5);
-          
-          if (newsLayerRef.current) {
-            newsLayerRef.current.clearLayers();
 
-            newsList.forEach((item: any) => {
-              if (
-                typeof item.latitude !== 'number' ||
-                typeof item.longitude !== 'number' ||
-                isNaN(item.latitude) ||
-                isNaN(item.longitude)
-              ) {
-                // Strictly do not plot items without genuine coordinates
-                return;
-              }
-
-              const geoStatus = item.geolocation_status || 'UNRESOLVED';
-              // Never plot ambiguous or unresolved articles at invented points
-              if (geoStatus !== 'VERIFIED' && geoStatus !== 'APPROXIMATE_LOCALITY') {
-                return;
-              }
-
-              const isVerified = geoStatus === 'VERIFIED';
-              const isApprox = geoStatus === 'APPROXIMATE_LOCALITY';
-
-              const newsIcon = L.divIcon({
-                className: '',
-                html: `
-                  <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; cursor: pointer;">
-                    <div style="position: absolute; inset: 0; background: ${isVerified ? '#2563eb' : '#d97706'}; border-radius: 50%; opacity: 0.25; animation: ping 3s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-                    <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: #ffffff; border: 2.5px ${isVerified ? 'solid #2563eb' : 'dashed #d97706'}; border-radius: 50%; box-shadow: 0 4px 12px ${isVerified ? 'rgba(37,99,235,0.45)' : 'rgba(217,119,6,0.45)'}; font-size: 15px;">
-                      ${isVerified ? '📍' : '🎯'}
-                    </div>
-                  </div>
-                `,
-                iconSize: [44, 44],
-                iconAnchor: [22, 22],
-                popupAnchor: [0, -22],
-              });
-
-              const marker = L.marker([item.latitude, item.longitude], { icon: newsIcon });
-
-              const severityColor =
-                item.severity === 'CRITICAL' ? '#dc2626' :
-                item.severity === 'HIGH' ? '#ea580c' :
-                item.severity === 'LOW' ? '#16a34a' : '#2563eb';
-
-              const popupHtml = `
-                <div style="font-family: system-ui, -apple-system, sans-serif; min-width: 270px; max-width: 340px; padding: 10px; color: #0f172a;">
-                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 4px;">
-                    <span style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; padding: 3px 6px; border-radius: 4px; ${
-                      isVerified
-                        ? 'color: #1e40af; background: #dbeafe; border: 1px solid #bfdbfe;'
-                        : 'color: #92400e; background: #fef3c7; border: 1px solid #fde68a;'
-                    }">
-                      ${isVerified ? '✓ VERIFIED INCIDENT POINT' : '⚠ APPROXIMATE LOCALITY'}
-                    </span>
-                    <span style="font-size: 9.5px; font-weight: 800; color: ${severityColor}; background: #f8fafc; border: 1px solid #e2e8f0; padding: 2px 6px; border-radius: 4px;">
-                      ${item.severity || 'MEDIUM'}
-                    </span>
-                  </div>
-
-                  <div style="font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 4px; line-height: 1.3;">
-                    ${item.title}
-                  </div>
-
-                  <div style="font-size: 11px; color: #475569; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
-                    <span>📍 <strong>${item.extracted_location || item.location_name || 'Pune District'}</strong></span>
-                    <span style="color: #94a3b8;">·</span>
-                    <span style="color: #64748b;">${Number(item.latitude).toFixed(4)}°N, ${Number(item.longitude).toFixed(4)}°E</span>
-                  </div>
-
-                  ${item.location_evidence ? `
-                    <div style="font-size: 11px; color: #334155; line-height: 1.35; background: #f8fafc; border-left: 3px solid #3b82f6; padding: 6px 8px; border-radius: 0 4px 4px 0; margin-bottom: 8px;">
-                      <span style="font-weight: 700; color: #1e293b; font-size: 10px; display: block; text-transform: uppercase; margin-bottom: 2px;">Location Evidence:</span>
-                      "${item.location_evidence}"
-                    </div>
-                  ` : ''}
-
-                  <div style="font-size: 12px; color: #334155; line-height: 1.4; border-top: 1px solid #e2e8f0; padding-top: 6px; margin-bottom: 8px;">
-                    ${item.description}
-                  </div>
-
-                  <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10.5px; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 4px;">
-                    <span>Source: <strong>${item.source || 'News'}</strong></span>
-                    <span>${new Date(item.timestamp || item.published_at).toLocaleString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                  </div>
-                  ${item.url ? `
-                    <div style="text-align: right; margin-top: 6px;">
-                      <a href="${item.url}" target="_blank" rel="noopener noreferrer" style="font-size: 11px; color: #2563eb; font-weight: 700; text-decoration: none;">
-                        Open Source Article ↗
-                      </a>
-                    </div>
-                  ` : ''}
-                </div>
-              `;
-
-              marker.bindPopup(popupHtml, { maxWidth: 360 });
-              marker.addTo(newsLayerRef.current!);
-            });
-          }
-        }
       } catch (err) {
         // Backend temporarily offline during restart or startup
       }
@@ -367,7 +266,33 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
         lineCap: 'round',
         lineJoin: 'round',
         dashArray: undefined,
-      }).addTo(routeLayer);
+      });
+
+      const tooltipContent = document.createElement('div');
+      tooltipContent.innerHTML = `
+        <div style="font-family: 'SF Pro Text', system-ui, -apple-system, sans-serif; min-width: 200px; color: #1d1d1f;">
+          <div style="font-size: 14px; font-weight: 600; color: #0066cc; margin-bottom: 6px; letter-spacing: -0.224px;">
+            ${activeRoute.teamName || activeRoute.fromName}
+          </div>
+          <div style="font-size: 17px; font-weight: 600; margin-bottom: 2px; letter-spacing: -0.374px;">
+            ${activeRoute.toName}
+          </div>
+          <div style="font-size: 14px; color: #7a7a7a; margin-bottom: 12px; letter-spacing: -0.224px;">
+            From: ${activeRoute.fromName}
+          </div>
+          <div style="display: flex; gap: 24px; border-top: 1px solid #f0f0f0; padding-top: 12px;">
+            <div>
+              <div style="font-size: 12px; color: #7a7a7a; letter-spacing: -0.12px; margin-bottom: 2px;">Distance</div>
+              <div style="font-size: 17px; font-weight: 600; letter-spacing: -0.374px;">${activeRoute.distanceKm} km</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; color: #7a7a7a; letter-spacing: -0.12px; margin-bottom: 2px;">Est. Time</div>
+              <div style="font-size: 17px; font-weight: 600; letter-spacing: -0.374px;">${activeRoute.durationMinutes} min</div>
+            </div>
+          </div>
+        </div>
+      `;
+      routePolyline.bindTooltip(tooltipContent, { sticky: true, opacity: 1, direction: 'top' }).addTo(routeLayer);
 
       allBounds.extend(routePolyline.getBounds());
 
@@ -697,6 +622,26 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
     }
   }, [showHistorical]);
 
+  // Live Traffic Overlay (Google Maps Traffic)
+  useEffect(() => {
+    if (!mapInstanceRef.current || !trafficLayerRef.current) return;
+    
+    if (showTraffic) {
+      trafficLayerRef.current.clearLayers();
+      // Use apistyle to hide all labels (s.e:l|p.v:off) and POIs/icons so it doesn't clutter the OSM base map
+      const googleTrafficLayer = L.tileLayer('https://mt0.google.com/vt/lyrs=h,traffic&apistyle=s.e:l|p.v:off,s.t:2|p.v:off,s.t:3|p.v:off&x={x}&y={y}&z={z}', {
+        maxZoom: 22,
+        attribution: '&copy; Google Maps Traffic',
+        opacity: 0.9,
+        zIndex: 100
+      });
+      trafficLayerRef.current.addLayer(googleTrafficLayer);
+    } else {
+      if (trafficLayerRef.current) {
+        trafficLayerRef.current.clearLayers();
+      }
+    }
+  }, [showTraffic]);
 
   return (
     <div className="relative w-full h-full min-h-[480px]">
@@ -773,6 +718,15 @@ export const MainHeroMap: React.FC<MainHeroMapProps> = ({
               className="w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer" 
             />
             <span className="text-[13px] font-medium text-slate-700 group-hover:text-slate-900">Historical Disasters</span>
+          </label>
+          <label className="flex items-center space-x-3 cursor-pointer group pt-2 border-t border-slate-200">
+            <input 
+              type="checkbox" 
+              checked={showTraffic} 
+              onChange={() => setShowTraffic(!showTraffic)}
+              className="w-4 h-4 rounded border-slate-300 text-red-500 focus:ring-red-400 cursor-pointer" 
+            />
+            <span className="text-[13px] font-medium text-slate-700 group-hover:text-slate-900">Live Traffic (TomTom)</span>
           </label>
         </div>
       </div>

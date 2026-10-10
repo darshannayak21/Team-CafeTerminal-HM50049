@@ -8,7 +8,7 @@ from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from werkzeug.utils import secure_filename
 
 from backend.config import get_config
-from backend.services.db import get_all_reports, get_report_by_id, save_report
+from backend.services.db import get_all_reports, get_report_by_id, save_report, delete_report
 from backend.services.population_service import estimate_population_in_radius
 
 reports_bp = Blueprint("reports", __name__)
@@ -172,8 +172,9 @@ def create_report():
 
     # 4.5 Estimate population affected
     estimated_pop = None
+    impact_radius = initial_analysis.get("impact_radius_km", 1.0) if initial_analysis else 1.0
     if latitude is not None and longitude is not None:
-        estimated_pop = estimate_population_in_radius(latitude, longitude, radius_km=1.0)
+        estimated_pop = estimate_population_in_radius(latitude, longitude, radius_km=impact_radius)
 
     # 5. Save to Database
     report_record = {
@@ -195,6 +196,7 @@ def create_report():
         "content_hash": content_fingerprint,
         "processed_at": proc_at,
         "estimated_population_1km": estimated_pop,
+        "impact_radius_km": impact_radius,
     }
 
     saved = save_report(report_record)
@@ -233,6 +235,21 @@ def get_report(report_id: str):
         "success": True,
         "report": report,
         "data": report,
+    }), 200
+
+@reports_bp.route("/api/reports/<report_id>", methods=["DELETE"])
+def delete_report_endpoint(report_id: str):
+    """Delete a ground report by ID."""
+    success = delete_report(report_id)
+    if not success:
+        return jsonify({
+            "success": False,
+            "error": f"Report '{report_id}' not found or could not be deleted."
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "message": f"Report '{report_id}' deleted successfully."
     }), 200
 
 

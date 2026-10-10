@@ -126,7 +126,7 @@ def aggregate_polygon_population(
         nodata_val = src.nodata
 
         try:
-            out_img, _ = rasterio.mask.mask(src, shapes_to_mask, crop=True, all_touched=False)
+            out_img, _ = rasterio.mask.mask(src, shapes_to_mask, crop=True, all_touched=True)
         except ValueError:
             # Raised by rasterio when shapes do not overlap raster
             return 0.0
@@ -143,6 +143,18 @@ def aggregate_polygon_population(
         valid_mask = valid_mask & (band_data >= 0.0)
 
         valid_population = band_data[valid_mask]
+        
+        # Scale population down if the polygon is smaller than the 1km pixels it touched
+        poly_area_sq_degrees = poly_geom.area
+        poly_area_sq_km = poly_area_sq_degrees * (111.32 ** 2)
+        
+        num_pixels = np.sum(valid_mask)
+        if num_pixels > 0:
+            total_pixel_area_sq_km = num_pixels * 1.0 # 1km resolution approx
+            if poly_area_sq_km < total_pixel_area_sq_km:
+                scale_factor = poly_area_sq_km / total_pixel_area_sq_km
+                valid_population = valid_population * scale_factor
+
         if len(valid_population) == 0:
             return 0.0
 
@@ -327,7 +339,7 @@ def estimate_population_in_radius(
     """
     if raster_path is None:
         from backend.config import Config
-        raster_path = os.path.join(Config.DATA_DIR, "ind_ppp_2020_1km_ASCII_XYZ.tif")
+        raster_path = os.path.join(Config.DATA_DIR, "ind_ppp_2020_1km.tif")
         
     if not os.path.exists(raster_path):
         import logging

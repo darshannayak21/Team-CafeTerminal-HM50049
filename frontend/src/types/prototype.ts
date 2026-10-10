@@ -79,6 +79,7 @@ export interface GroundReport {
   created_at: string;
   analysis_result?: any;
   estimated_population_1km?: number | null;
+  impact_radius_km?: number | null;
 }
 
 export interface NewsReport {
@@ -108,6 +109,7 @@ export interface NewsReport {
   created_at?: string;
   analysis_result?: any;
   estimated_population_1km?: number | null;
+  impact_radius_km?: number | null;
 }
 
 export interface OperationalMetrics {

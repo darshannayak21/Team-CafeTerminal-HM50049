@@ -19,9 +19,9 @@ except ImportError:
     GROQ_AVAILABLE = False
 
 
-def _get_groq_client() -> Optional[Any]:
+def _get_groq_client(api_key_env="GROQ_API_KEY") -> Optional[Any]:
     """Initialize Groq client."""
-    api_key = os.environ.get("GROQ_API_KEY")
+    api_key = os.environ.get(api_key_env)
     if GROQ_AVAILABLE and api_key and api_key.strip():
         try:
             return Groq(api_key=api_key.strip())
@@ -149,7 +149,7 @@ def analyze_citizen_report(
     image_path: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Analyze ground report text and photo for validity, severity, and hazard extraction."""
-    client = _get_groq_client()
+    client = _get_groq_client("GROQ_API_KEY2")
 
     prompt = f"""You are an emergency triage AI. Analyze this citizen-submitted disaster report from the field:
 Description: "{description}"
@@ -164,6 +164,7 @@ Output as strict JSON with exactly these fields:
 5. "verification_badge": string (Always "AI-VERIFIED FIELD OBSERVATION").
 6. "actionable_summary": A 1-sentence tactical summary of the hazard.
 7. "estimated_lives_at_risk": string (Estimate of affected population, e.g. "10-50 people", "Unknown", or "Over 100 lives at risk/affected" if severe).
+8. "impact_radius_km": float (Estimate the physical impact radius in kilometers based on the hazard. e.g. a localized house fire is 0.1, a large building/hostel collapse is 0.5. A major neighborhood flood or toxic leak could be 2.0 to 5.0).
 """
     if client:
         try:
@@ -252,10 +253,15 @@ Output as strict JSON with exactly these fields:
         detected_hazards.append("general_hazard")
 
     estimated_lives = "Unknown (Requires Field Assessment)"
+    impact_radius = 0.5
     if "suncity" in desc_lower or "collapse" in desc_lower:
         estimated_lives = "Over 100 lives at risk/affected"
+        impact_radius = 0.1
     elif severity == "CRITICAL":
         estimated_lives = "50+ individuals in immediate danger"
+        impact_radius = 2.0
+    elif "water" in desc_lower or "flood" in desc_lower or "submerge" in desc_lower:
+        impact_radius = 1.0
 
     return {
         "is_relevant": True,
@@ -265,6 +271,7 @@ Output as strict JSON with exactly these fields:
         "verification_badge": "AI-VERIFIED FIELD OBSERVATION",
         "actionable_summary": f"Citizen reports {severity.lower()} hazard: '{description[:80]}...'. Corroborated with active monsoon rainfall.",
         "estimated_lives_at_risk": estimated_lives,
+        "impact_radius_km": impact_radius,
         "ai_confidence": 0.91,
     }
 
@@ -278,7 +285,7 @@ def extract_news_location_and_hazard(
     The LLM's responsibility is location-name and event extraction, NEVER coordinate invention.
     """
     from backend.services.db import increment_metric
-    client = _get_groq_client()
+    client = _get_groq_client("GROQ_API_KEY")
 
     combined_text = f"Headline: {headline}\nDescription: {description}\nSource: {source}".strip()
 

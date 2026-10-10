@@ -156,8 +156,9 @@ def twilio_webhook():
 
     # 5b. Population Estimation
     estimated_pop = None
+    impact_radius = initial_analysis.get("impact_radius_km", 1.0)
     if latitude is not None and longitude is not None:
-        estimated_pop = estimate_population_in_radius(latitude, longitude, radius_km=1.0)
+        estimated_pop = estimate_population_in_radius(latitude, longitude, radius_km=impact_radius)
 
     # 6. Persistence
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -180,6 +181,7 @@ def twilio_webhook():
         "analysis_result": initial_analysis,
         "content_hash": None,
         "estimated_population_1km": estimated_pop,
+        "impact_radius_km": impact_radius,
     }
     
     try:

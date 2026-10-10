@@ -115,7 +115,7 @@ export const DistrictMap: React.FC<DistrictMapProps> = ({
 
     // Filter incidents for this district
     const districtIncidents = incidents.filter(
-      (inc) => inc.talukaId.toLowerCase() === district.id.toLowerCase()
+      (inc) => inc.talukaId?.toLowerCase() === district.id.toLowerCase()
     );
 
     districtIncidents.forEach((inc) => {

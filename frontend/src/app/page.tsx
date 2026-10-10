@@ -32,33 +32,7 @@ function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
 }
 
 export default function MainPage() {
-  const [activeRoutes, setActiveRoutes] = useState<any[]>([
-    {
-      id: 'simulated-yellow-team',
-      fromName: 'Warje Support Unit',
-      toName: 'Warje Bridge Collapse',
-      fromCoords: [18.475245, 73.797593],
-      toCoords: [18.4756, 73.8086],
-      distanceKm: '1.2',
-      durationMinutes: 4,
-      atRiskSegmentsCount: 0,
-      disruptedSegmentsAvoidedCount: 0,
-      waypoints: [
-        [18.475284, 73.797687], [18.475042, 73.796956], [18.475365, 73.796161], 
-        [18.475862, 73.795918], [18.476441, 73.79645], [18.476912, 73.79696], 
-        [18.477786, 73.797891], [18.478243, 73.79839], [18.478938, 73.799115], 
-        [18.479386, 73.79957], [18.479943, 73.800467], [18.480662, 73.801549], 
-        [18.48071, 73.801938], [18.480371, 73.803161], [18.480289, 73.804028], 
-        [18.480194, 73.804671], [18.479115, 73.805637], [18.478415, 73.806259], 
-        [18.477821, 73.806774], [18.477067, 73.807305], [18.476506, 73.807821], 
-        [18.47561, 73.808613]
-      ],
-      routeSummary: 'Direct route to bridge',
-      color: '#eab308',
-      teamName: 'Warje Support Unit',
-      population: 'Unknown'
-    }
-  ]);
+  const [activeRoutes, setActiveRoutes] = useState<any[]>([]);
   const [isTeamsOverlayOpen, setIsTeamsOverlayOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [showElevation, setShowElevation] = useState<boolean>(false);
@@ -75,6 +49,32 @@ export default function MainPage() {
   const [notification, setNotification] = useState<{title: string, message: string, type: 'report'|'news'}|null>(null);
   const prevReportsCountRef = useRef(0);
   const prevNewsCountRef = useRef(0);
+
+  const [isRoutesLoaded, setIsRoutesLoaded] = useState(false);
+
+  // Load activeRoutes from localStorage on mount
+  useEffect(() => {
+    try {
+      const storedRoutes = localStorage.getItem('sahayak_active_routes');
+      if (storedRoutes) {
+        setActiveRoutes(JSON.parse(storedRoutes));
+      }
+    } catch (e) {
+      console.error('Failed to parse active routes from local storage', e);
+    } finally {
+      setIsRoutesLoaded(true);
+    }
+  }, []);
+
+  // Save activeRoutes to localStorage when it changes
+  useEffect(() => {
+    if (!isRoutesLoaded) return;
+    try {
+      localStorage.setItem('sahayak_active_routes', JSON.stringify(activeRoutes));
+    } catch (e) {
+      console.error('Failed to save active routes to local storage', e);
+    }
+  }, [activeRoutes, isRoutesLoaded]);
 
   // Poll Backend for Live Ground Reports, Database-Backed News, and Operational Stats
   useEffect(() => {
@@ -234,15 +234,34 @@ export default function MainPage() {
                             Ground Report
                           </span>
                         </div>
-                        {routeForReport ? (
-                          <span className="text-[10px] font-bold uppercase tracking-wide text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
-                            RESPONDING
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-                            {report.status || 'Pending'}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {routeForReport ? (
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                              RESPONDING
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                              {report.status || 'Pending'}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (confirm('Delete this ground report?')) {
+                                try {
+                                  await fetch(`http://localhost:5000/api/reports/${report.id}`, { method: 'DELETE' });
+                                } catch (err) {
+                                  console.error(err);
+                                }
+                              }
+                            }}
+                            className="text-slate-400 hover:text-red-600 transition-colors bg-slate-50 hover:bg-red-50 p-1 rounded border border-slate-200 hover:border-red-200 ml-1"
+                            title="Delete Report"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                          </button>
+                        </div>
                       </div>
 
                       <div className="flex items-start justify-between gap-2">
@@ -297,7 +316,7 @@ export default function MainPage() {
                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Estimated population nearby</span>
                           {report.estimated_population_1km !== null && report.estimated_population_1km !== undefined ? (
                             <span className="text-[12px] font-semibold text-slate-800">
-                              Within 1 km: {report.estimated_population_1km.toLocaleString()} people
+                              Within {report.impact_radius_km || 1} km: {Math.round(report.estimated_population_1km).toLocaleString()} people
                             </span>
                           ) : (
                             <span className="text-[12px] font-medium text-slate-500 italic">Population data unavailable</span>
@@ -416,7 +435,7 @@ export default function MainPage() {
                             const missionData = {
                               title: report.incident_type,
                               description: report.description || 'Respond to field incident immediately.',
-                              population: (report.analysis_result?.estimated_lives_at_risk) ?? 'Unknown (Requires Field Assessment)',
+                              population: ((report as any).analysis_result?.estimated_lives_at_risk) ?? 'Unknown (Requires Field Assessment)',
                               brief: safetyBrief,
                               route: waypoints,
                               team: selectedTeam,
@@ -609,7 +628,7 @@ export default function MainPage() {
                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Estimated population nearby</span>
                             {item.estimated_population_1km !== null && item.estimated_population_1km !== undefined ? (
                               <span className="text-[12px] font-semibold text-slate-800">
-                                Within 1 km: {item.estimated_population_1km.toLocaleString()} people
+                                Within {item.impact_radius_km || 1} km: {Math.round(item.estimated_population_1km).toLocaleString()} people
                               </span>
                             ) : (
                               <span className="text-[12px] font-medium text-slate-500 italic">Population data unavailable</span>
@@ -684,86 +703,147 @@ export default function MainPage() {
       </main>
 
       {/* Active Teams Mini Panel */}
-      <div className="absolute bottom-6 right-6 z-10 flex flex-col pointer-events-none w-[320px]">
-        <div className="pointer-events-auto frosted-glass rounded-xl border border-hairline p-4 shadow-sm bg-white/95 backdrop-blur-md">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-[14px] font-bold text-ink">Active Teams ({activeRoutes.length})</h3>
+      <div className="absolute bottom-6 right-6 z-10 flex flex-col pointer-events-none w-[340px]">
+        <div className="pointer-events-auto rounded-xl border border-hairline shadow-sm bg-white/97 backdrop-blur-md overflow-hidden" style={{ fontFamily: "'SF Pro Text', system-ui, -apple-system, sans-serif" }}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-hairline">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.224px' }}>Active Teams</h3>
+              {activeRoutes.length > 0 && (
+                <span style={{ fontSize: '11px', fontWeight: 600, background: '#0066cc', color: '#fff', borderRadius: '9999px', padding: '1px 8px' }}>{activeRoutes.length}</span>
+              )}
+            </div>
             {activeRoutes.length > 0 && (
-              <button 
-                onClick={() => setIsTeamsOverlayOpen(true)}
-                className="text-[11px] text-blue-600 font-bold hover:underline"
-              >
-                View All
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    if (confirm('Are you sure you want to reset the demo and clear all routes?')) {
+                      localStorage.removeItem('sahayak_active_routes');
+                      setActiveRoutes([]);
+                    }
+                  }}
+                  style={{ fontSize: '12px', fontWeight: 600, color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  Reset
+                </button>
+                <button
+                  onClick={() => setIsTeamsOverlayOpen(true)}
+                  style={{ fontSize: '12px', fontWeight: 600, color: '#0066cc', background: 'none', border: 'none', cursor: 'pointer' }}
+                >
+                  View All
+                </button>
+              </div>
             )}
           </div>
-          {activeRoutes.length === 0 ? (
-            <p className="text-[12px] text-slate-500 italic">No teams currently dispatched.</p>
-          ) : (
-            <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
-              {activeRoutes.slice(0, 3).map(r => (
-                <div key={r.id} className="flex items-center gap-2 text-[12px] bg-slate-50 p-2 rounded border border-slate-100">
-                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: r.color }}></div>
-                  <div className="flex-1 truncate">
-                    <div className="font-bold text-slate-800 truncate">{r.teamName}</div>
-                    <div className="text-slate-500 text-[10px] truncate">En route to {r.toName}</div>
+          {/* Body */}
+          <div className="px-3 py-2">
+            {activeRoutes.length === 0 ? (
+              <p style={{ fontSize: '12px', color: '#7a7a7a', padding: '8px 4px', fontStyle: 'italic' }}>No teams currently dispatched.</p>
+            ) : (
+              <div className="space-y-2 max-h-[180px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                {activeRoutes.slice(0, 3).map(r => (
+                  <div key={r.id} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: '#f5f5f7' }}>
+                    <div className="w-2.5 h-full min-h-[36px] rounded-full shrink-0" style={{ backgroundColor: r.color, width: '3px' }}></div>
+                    <div className="flex-1 min-w-0">
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.224px' }} className="truncate">{r.teamName}</div>
+                      <div style={{ fontSize: '11px', color: '#7a7a7a', letterSpacing: '-0.12px' }} className="truncate">To: {r.toName}</div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.374px' }}>{r.durationMinutes ?? '—'} min</div>
+                      <div style={{ fontSize: '11px', color: '#7a7a7a' }}>{r.distanceKm ?? '—'} km</div>
+                    </div>
                   </div>
-                </div>
-              ))}
-              {activeRoutes.length > 3 && <p className="text-[10px] text-slate-400 text-center pt-1">+{activeRoutes.length - 3} more teams...</p>}
-            </div>
-          )}
+                ))}
+                {activeRoutes.length > 3 && <p style={{ fontSize: '11px', color: '#7a7a7a', textAlign: 'center', paddingTop: '4px' }}>+{activeRoutes.length - 3} more</p>}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Full Overlay for Active Teams */}
       {isTeamsOverlayOpen && (
-        <div className="absolute inset-0 z-[100] bg-white/95 backdrop-blur-md p-8 flex flex-col pointer-events-auto overflow-y-auto">
-          <div className="flex items-center justify-between mb-8 max-w-4xl mx-auto w-full">
-            <h2 className="text-[28px] font-bold text-ink tracking-tight flex items-center gap-3">
-              <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
-              Active Dispatches Tracker
-            </h2>
-            <button onClick={() => setIsTeamsOverlayOpen(false)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition-colors">
-              ✕ Close
-            </button>
+        <div className="absolute inset-0 z-[100] bg-white/97 backdrop-blur-md flex flex-col pointer-events-auto overflow-y-auto" style={{ fontFamily: "'SF Pro Text', system-ui, -apple-system, sans-serif" }}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-10 py-8 border-b border-hairline">
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#7a7a7a', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '4px' }}>Command Center</div>
+              <h2 style={{ fontSize: '28px', fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.374px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#16a34a', display: 'inline-block', animation: 'pulse 2s infinite' }}></span>
+                Active Dispatches
+                <span style={{ fontSize: '14px', fontWeight: 600, background: '#0066cc', color: '#fff', borderRadius: '9999px', padding: '2px 12px' }}>{activeRoutes.length}</span>
+              </h2>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  if (confirm('Are you sure you want to reset the demo and clear all routes?')) {
+                    localStorage.removeItem('sahayak_active_routes');
+                    setActiveRoutes([]);
+                  }
+                }}
+                style={{ fontSize: '14px', fontWeight: 600, color: '#dc2626', background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', padding: '8px 18px', cursor: 'pointer' }}
+              >
+                Reset Demo
+              </button>
+              <button
+                onClick={() => setIsTeamsOverlayOpen(false)}
+                style={{ fontSize: '14px', fontWeight: 600, color: '#1d1d1f', background: '#f5f5f7', border: '1px solid #e0e0e0', borderRadius: '8px', padding: '8px 18px', cursor: 'pointer' }}
+              >
+                Close
+              </button>
+            </div>
           </div>
-          <div className="max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {activeRoutes.map(r => (
-              <div key={r.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1" style={{ backgroundColor: r.color }}></div>
-                <div className="flex items-start justify-between mb-4 mt-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg shadow-sm" style={{ backgroundColor: r.color }}>
-                      🚑
+          {/* Cards Grid */}
+          <div className="flex-1 px-10 py-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 max-w-6xl">
+              {activeRoutes.map(r => (
+                <div key={r.id} style={{ background: '#ffffff', border: '1px solid #e0e0e0', borderRadius: '18px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                  {/* Color bar top */}
+                  <div style={{ height: '4px', background: r.color }}></div>
+                  <div style={{ padding: '20px' }}>
+                    {/* Team name + status */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
+                      <div>
+                        <div style={{ fontSize: '17px', fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.374px', marginBottom: '4px' }}>{r.teamName}</div>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#d97706', background: '#fefce8', border: '1px solid #fde68a', borderRadius: '9999px', padding: '2px 10px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>En Route</span>
+                      </div>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: r.color, marginTop: '6px', boxShadow: `0 0 0 3px ${r.color}30` }}></div>
                     </div>
-                    <div>
-                      <h4 className="text-[16px] font-bold text-slate-900">{r.teamName}</h4>
-                      <p className="text-[12px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full inline-block mt-1 uppercase">EN ROUTE</p>
+                    {/* Stats row */}
+                    <div style={{ display: 'flex', gap: '0', borderTop: '1px solid #f0f0f0', paddingTop: '16px', marginBottom: '16px' }}>
+                      <div style={{ flex: 1, paddingRight: '16px', borderRight: '1px solid #f0f0f0' }}>
+                        <div style={{ fontSize: '11px', color: '#7a7a7a', marginBottom: '2px', letterSpacing: '-0.12px' }}>Est. Time</div>
+                        <div style={{ fontSize: '22px', fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.374px' }}>{r.durationMinutes ?? '—'}<span style={{ fontSize: '13px', fontWeight: 400, color: '#7a7a7a', marginLeft: '3px' }}>min</span></div>
+                      </div>
+                      <div style={{ flex: 1, paddingLeft: '16px' }}>
+                        <div style={{ fontSize: '11px', color: '#7a7a7a', marginBottom: '2px', letterSpacing: '-0.12px' }}>Distance</div>
+                        <div style={{ fontSize: '22px', fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.374px' }}>{r.distanceKm ?? '—'}<span style={{ fontSize: '13px', fontWeight: 400, color: '#7a7a7a', marginLeft: '3px' }}>km</span></div>
+                      </div>
                     </div>
+                    {/* Destination */}
+                    <div style={{ background: '#f5f5f7', borderRadius: '11px', padding: '12px 14px', marginBottom: r.riskScore !== undefined ? '12px' : '0' }}>
+                      <div style={{ fontSize: '11px', color: '#7a7a7a', marginBottom: '3px', letterSpacing: '-0.12px' }}>Destination</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#1d1d1f', letterSpacing: '-0.224px' }}>{r.toName}</div>
+                      <div style={{ fontSize: '11px', color: '#7a7a7a', marginTop: '2px' }}>From: {r.fromName}</div>
+                    </div>
+                    {/* Risk */}
+                    {r.riskScore !== undefined && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #f0f0f0' }}>
+                        <span style={{ fontSize: '12px', color: '#7a7a7a', letterSpacing: '-0.12px' }}>Route Risk Score</span>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: r.riskScore >= 0.6 ? '#dc2626' : r.riskScore >= 0.35 ? '#d97706' : '#16a34a' }}>{(r.riskScore * 100).toFixed(0)}%</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 text-[13px] text-slate-600 space-y-1.5">
-                  <p><strong className="text-slate-800">Origin:</strong> {r.fromCoords[0].toFixed(4)}, {r.fromCoords[1].toFixed(4)}</p>
-                  <p><strong className="text-slate-800">Destination:</strong> {r.toCoords[0].toFixed(4)}, {r.toCoords[1].toFixed(4)}</p>
-                  <p><strong className="text-slate-800">Distance:</strong> {r.distanceKm} km</p>
-                  
-                  {r.population && r.population !== 'Unknown' && (
-                    <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded text-red-800 font-semibold flex items-center gap-2">
-                      <span className="text-lg">⚠️</span> {r.population}
-                    </div>
-                  )}
-
-                  <div className="pt-2 mt-2 border-t border-slate-200 flex justify-between items-center">
-                      <span className="font-semibold text-slate-800">Live GPS Lock Active</span>
-                      <span className="text-emerald-600 animate-pulse text-[10px] font-bold tracking-wider">● LIVE</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}
+
+
 
       {/* Image Preview Modal */}
       {previewImage && (

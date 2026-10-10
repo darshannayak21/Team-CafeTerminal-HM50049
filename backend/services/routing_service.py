@@ -243,11 +243,19 @@ def compute_flood_aware_route(
     rainfall_stations = rainfall_stations or []
     recent_reports = recent_reports or []
 
-    # 1. Update the graph with latest hazard data (500m radius blocking)
+    # 1. Fetch live traffic
+    try:
+        from backend.services.traffic_service import fetch_live_traffic
+        traffic_data = fetch_live_traffic()
+    except Exception as e:
+        logger.warning(f"[RoutingService] Failed to fetch traffic: {e}")
+        traffic_data = None
+
+    # 2. Update the graph with latest hazard data (500m radius blocking)
     _apply_hazards_to_graph(rainfall_stations, recent_reports, elevation_processor)
     
-    # 2. Compute shortest path using A* with hazard-weighted cost
-    route_nodes = graph_manager.get_route(origin_lat, origin_lon, dest_lat, dest_lon)
+    # 3. Compute shortest path using A* with hazard-weighted cost and traffic delays
+    route_nodes = graph_manager.get_route(origin_lat, origin_lon, dest_lat, dest_lon, traffic_data=traffic_data)
     
     if not route_nodes:
         # Fallback straight line — should rarely happen with a healthy graph
@@ -278,7 +286,7 @@ def compute_flood_aware_route(
         }
 
     # 3. Extract stats + full geometry
-    stats = graph_manager.get_route_geometry_and_stats(route_nodes)
+    stats = graph_manager.get_route_geometry_and_stats(route_nodes, traffic_data=traffic_data)
     
     dist_km = round(stats["distance_m"] / 1000, 2)
     duration_min = round(stats["duration_s"] / 60, 1)

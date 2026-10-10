@@ -75,6 +75,8 @@ def init_db() -> None:
             cursor.execute("ALTER TABLE reports ADD COLUMN processed_at TEXT")
         if "estimated_population_1km" not in report_columns:
             cursor.execute("ALTER TABLE reports ADD COLUMN estimated_population_1km REAL")
+        if "impact_radius_km" not in report_columns:
+            cursor.execute("ALTER TABLE reports ADD COLUMN impact_radius_km REAL")
 
         # 2. News Table
         cursor.execute(
@@ -123,6 +125,7 @@ def init_db() -> None:
             "error_message": "TEXT",
             "updated_at": "TEXT",
             "estimated_population_1km": "REAL",
+            "impact_radius_km": "REAL",
         }
 
         for field_name, field_type in extended_fields.items():
@@ -605,8 +608,8 @@ def save_report(report_data: Dict[str, Any]) -> Dict[str, Any]:
                 latitude, longitude, accuracy, location_name,
                 timestamp, source, status, created_at,
                 processing_status, analysis_result, content_hash, processed_at,
-                estimated_population_1km
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                estimated_population_1km, impact_radius_km
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 report_data["id"],
@@ -627,6 +630,7 @@ def save_report(report_data: Dict[str, Any]) -> Dict[str, Any]:
                 report_data.get("content_hash"),
                 report_data.get("processed_at"),
                 report_data.get("estimated_population_1km"),
+                report_data.get("impact_radius_km"),
             ),
         )
         conn.commit()
@@ -689,3 +693,12 @@ def get_all_reports() -> List[Dict[str, Any]]:
                     pass
             reports.append(r)
         return reports
+
+def delete_report(report_id: str) -> bool:
+    """Delete a ground report from the database."""
+    init_db()
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM reports WHERE id = ?", (report_id,))
+        conn.commit()
+        return cursor.rowcount > 0

@@ -124,8 +124,8 @@ class RoadGraphManager:
             self.load_graph()
         return ox.distance.nearest_nodes(self.G, X=lon, Y=lat)
         
-    def get_route(self, origin_lat: float, origin_lon: float, dest_lat: float, dest_lon: float) -> Optional[List[int]]:
-        """Calculate the shortest path considering hazard penalties."""
+    def get_route(self, origin_lat: float, origin_lon: float, dest_lat: float, dest_lon: float, traffic_data=None) -> Optional[List[int]]:
+        """Calculate the shortest path considering hazard penalties and traffic delays."""
         with self._lock:
             if self.G is None:
                 self.load_graph()
@@ -133,15 +133,38 @@ class RoadGraphManager:
             orig_node = self.get_nearest_node(origin_lat, origin_lon)
             dest_node = self.get_nearest_node(dest_lat, dest_lon)
             
+            traffic_incidents, traffic_tree = traffic_data if traffic_data else (None, None)
+            
             # Weight function for A* / Dijkstra
             def weight_func(u, v, d):
-                # We expect a MultiDiGraph, so d is a dict of edge keys -> attributes
-                # Find the edge with the minimum cost
+                # Calculate traffic delay for this edge
+                traffic_delay = 0.0
+                if traffic_tree is not None and traffic_incidents is not None:
+                    try:
+                        from shapely.geometry import LineString
+                        u_lon, u_lat = self.G.nodes[u]["x"], self.G.nodes[u]["y"]
+                        v_lon, v_lat = self.G.nodes[v]["x"], self.G.nodes[v]["y"]
+                        edge_line = LineString([(u_lon, u_lat), (v_lon, v_lat)])
+                        
+                        indices = traffic_tree.query(edge_line)
+                        for idx in indices:
+                            # 30m tolerance approx
+                            if edge_line.distance(traffic_incidents[idx]["geometry"]) <= 0.00027:
+                                delay = traffic_incidents[idx]["delay"]
+                                if delay > traffic_delay:
+                                    traffic_delay = delay
+                    except Exception:
+                        pass
+
                 min_cost = float('inf')
                 for key, data in d.items():
-                    base_time = data.get("travel_time", data.get("length", 1.0))
+                    base_time = data.get("travel_time", data.get("length", 1.0) / 8.33)
+                    # Traffic-adjusted travel time
+                    adjusted_time = base_time + traffic_delay
+                    
                     penalty = data.get("flood_penalty", 0.0)
-                    cost = base_time * (1.0 + penalty)
+                    cost = adjusted_time * (1.0 + penalty)
+                    
                     if cost < min_cost:
                         min_cost = cost
                 return min_cost
@@ -157,10 +180,10 @@ class RoadGraphManager:
                 logger.error(f"[RoadGraph] Routing error: {e}")
                 return None
                 
-    def get_route_geometry_and_stats(self, route_nodes: List[int]) -> Dict[str, Any]:
+    def get_route_geometry_and_stats(self, route_nodes: List[int], traffic_data=None) -> Dict[str, Any]:
         """Convert a list of node IDs into lat/lon waypoints and aggregate stats."""
         if not route_nodes or self.G is None:
-            return {"waypoints": [], "distance_m": 0.0, "duration_s": 0.0, "blocked_segments": 0, "avg_risk": 0.0, "evidence": []}
+            return {"waypoints": [], "distance_m": 0.0, "duration_s": 0.0, "blocked_segments": 0, "avg_risk": 0.0, "evidence": [], "traffic_used": False}
             
         waypoints = []
         distance_m = 0.0
@@ -168,6 +191,9 @@ class RoadGraphManager:
         blocked = 0
         total_risk = 0.0
         all_evidence = []
+        
+        traffic_incidents, traffic_tree = traffic_data if traffic_data else (None, None)
+        traffic_used = (traffic_tree is not None)
         
         # Add the first node's coordinate
         first_node = self.G.nodes[route_nodes[0]]
@@ -192,7 +218,29 @@ class RoadGraphManager:
                 waypoints.append([target_node["y"], target_node["x"]])
                 
             distance_m += edge_data.get("length", 0.0)
-            duration_s += edge_data.get("travel_time", 0.0)
+            
+            # Add base travel time
+            edge_duration = edge_data.get("travel_time", 0.0)
+            
+            # Add traffic delay if any
+            traffic_delay = 0.0
+            if traffic_tree is not None and traffic_incidents is not None:
+                try:
+                    from shapely.geometry import LineString
+                    u_lon, u_lat = self.G.nodes[u]["x"], self.G.nodes[u]["y"]
+                    v_lon, v_lat = self.G.nodes[v]["x"], self.G.nodes[v]["y"]
+                    edge_line = LineString([(u_lon, u_lat), (v_lon, v_lat)])
+                    
+                    indices = traffic_tree.query(edge_line)
+                    for idx in indices:
+                        if edge_line.distance(traffic_incidents[idx]["geometry"]) <= 0.00027:
+                            delay = traffic_incidents[idx]["delay"]
+                            if delay > traffic_delay:
+                                traffic_delay = delay
+                except Exception:
+                    pass
+            
+            duration_s += (edge_duration + traffic_delay)
             
             risk = edge_data.get("risk_score", 0.0)
             total_risk += risk
@@ -204,6 +252,10 @@ class RoadGraphManager:
             
         avg_risk = total_risk / max(1, len(route_nodes) - 1)
         unique_evidence = list(dict.fromkeys(all_evidence))[:10]
+        if traffic_used:
+            unique_evidence.append("Traffic-adjusted ETA applied (TomTom Live Data)")
+        else:
+            unique_evidence.append("Baseline ETA used (Traffic data unavailable)")
         
         return {
             "waypoints": waypoints,
@@ -212,6 +264,7 @@ class RoadGraphManager:
             "blocked_segments_count": blocked,
             "overall_risk_score": avg_risk,
             "evidence_summary": unique_evidence,
+            "traffic_used": traffic_used,
         }
 
 # Global instance

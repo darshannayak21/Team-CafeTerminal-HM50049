@@ -6,6 +6,7 @@ Endpoints:
     GET  /api/route/status    — Service health + data source availability
 """
 
+import os
 import logging
 from flask import Blueprint, jsonify, request
 
@@ -195,6 +196,47 @@ def get_hazard_segments():
         logger.error(f"[RoutingAPI] hazard-segments failed: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+@routing_bp.route("/api/route/traffic-segments", methods=["GET"])
+def get_traffic_segments():
+    """Return live traffic incidents for map visualization."""
+    try:
+        from backend.services.traffic_service import fetch_live_traffic
+        traffic_data = fetch_live_traffic()
+        
+        incidents = []
+        if traffic_data and len(traffic_data) == 2:
+            parsed_incidents, tree = traffic_data
+            if parsed_incidents:
+                for inc in parsed_incidents:
+                    geom = inc["geometry"]
+                    # Convert shapely LineString to GeoJSON coordinates
+                    coords = list(geom.coords)
+                    incidents.append({
+                        "id": inc["id"],
+                        "delay": inc["delay"],
+                        "magnitude": inc["magnitude"],
+                        "geometry": {
+                            "type": "LineString",
+                            "coordinates": coords
+                        }
+                    })
+                
+        return jsonify({
+            "success": True,
+            "incidents": incidents
+        }), 200
+    except Exception as e:
+        logger.exception(f"[RoutingAPI] Failed to fetch traffic segments: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@routing_bp.route("/api/route/traffic-config", methods=["GET"])
+def traffic_config():
+    """Return the TomTom API key for frontend raster tiles."""
+    key = os.getenv("TOMTOM_API_KEY")
+    if key:
+        return jsonify({"success": True, "apiKey": key})
+    return jsonify({"success": False, "error": "No key configured"}), 404
 
 @routing_bp.route("/api/route/status", methods=["GET"])
 def routing_status():
