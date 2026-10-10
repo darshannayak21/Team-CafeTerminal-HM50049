@@ -77,6 +77,7 @@ export interface GroundReport {
   source: string;
   status: 'pending' | 'verified' | 'rejected' | string;
   created_at: string;
+  analysis_result?: any;
 }
 
 export interface NewsReport {
