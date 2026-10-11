@@ -165,6 +165,7 @@ Output as strict JSON with exactly these fields:
 6. "actionable_summary": A 1-sentence tactical summary of the hazard.
 7. "estimated_lives_at_risk": string (Estimate of affected population, e.g. "10-50 people", "Unknown", or "Over 100 lives at risk/affected" if severe).
 8. "impact_radius_km": float (Estimate the physical impact radius in kilometers based on the hazard. e.g. a localized house fire is 0.1, a large building/hostel collapse is 0.5. A major neighborhood flood or toxic leak could be 2.0 to 5.0).
+9. "ai_confidence": float between 0.0 and 1.0 (Based strictly on visual and narrative proof: 0.85-0.98 if image visually confirms actual disaster hazards matching the text, 0.50-0.70 if text description without photographic confirmation, <0.35 if photo is unrelated or irrelevant).
 """
     if client:
         try:
@@ -220,7 +221,17 @@ Output as strict JSON with exactly these fields:
             if text.startswith("```"): text = text[3:]
             if text.endswith("```"): text = text[:-3]
             parsed = json.loads(text.strip())
-            parsed["ai_confidence"] = 0.94
+            
+            # Dynamic calculated confidence based on Groq evaluation
+            if "ai_confidence" not in parsed or not isinstance(parsed["ai_confidence"], (int, float)):
+                if not parsed.get("is_relevant", True):
+                    parsed["ai_confidence"] = 0.25
+                elif image_path and parsed.get("detected_hazards"):
+                    parsed["ai_confidence"] = 0.92
+                else:
+                    parsed["ai_confidence"] = 0.70
+            else:
+                parsed["ai_confidence"] = max(0.15, min(0.99, float(parsed["ai_confidence"])))
             return parsed
         except Exception as e:
             print(f"[AIService] Groq API error analyzing citizen report: {e}")

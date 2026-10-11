@@ -172,7 +172,7 @@ def create_report():
 
     # 4.5 Estimate population affected
     estimated_pop = None
-    impact_radius = initial_analysis.get("impact_radius_km", 1.0) if initial_analysis else 1.0
+    impact_radius = initial_analysis.get("impact_radius_km", 0.1) if initial_analysis else 0.1
     if latitude is not None and longitude is not None:
         estimated_pop = estimate_population_in_radius(latitude, longitude, radius_km=impact_radius)
 

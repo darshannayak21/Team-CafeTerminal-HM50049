@@ -156,7 +156,7 @@ def twilio_webhook():
 
     # 5b. Population Estimation
     estimated_pop = None
-    impact_radius = initial_analysis.get("impact_radius_km", 1.0)
+    impact_radius = initial_analysis.get("impact_radius_km", 0.1)
     if latitude is not None and longitude is not None:
         estimated_pop = estimate_population_in_radius(latitude, longitude, radius_km=impact_radius)
 

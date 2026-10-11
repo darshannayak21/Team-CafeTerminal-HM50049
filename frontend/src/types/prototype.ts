@@ -26,6 +26,7 @@ export interface TalukaDistrict {
   hazardScore: number;
   rank: number;
   affectedPopulation: number;
+  totalPopulation?: number;
   atRiskRoadsCount: number;
   disruptedRoadsCount: number;
   rainfall1h: number;   // mm

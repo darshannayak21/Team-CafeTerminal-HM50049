@@ -9,8 +9,10 @@ Identifies cut-off communities when access routes are severed.
 import json
 import math
 import os
+import sqlite3
 from datetime import datetime, timezone
 from typing import Any, Dict, List
+from shapely.geometry import shape, Point
 
 from flask import Blueprint, jsonify, request
 
@@ -18,98 +20,16 @@ from backend.config import Config
 from backend.models.schemas import HazardInput, Location, Settlement
 from backend.services.hazard_engine import calculate_hazard_score
 from backend.services.settlement_service import load_settlements_from_file
+from backend.routes.elevation import processor as elevation_processor
+from backend.routes.rainfall import STATIONS
 
 priorities_bp = Blueprint("priorities", __name__)
 
-# Active dispatched missions stored in memory (resilient across requests)
-ACTIVE_DISPATCHES: List[Dict[str, Any]] = [
-    {
-        "dispatch_id": "DISP-001",
-        "settlement_id": "pune-mulshi",
-        "settlement_name": "Mulshi (Paud Settlement)",
-        "taluka": "Mulshi",
-        "unit_id": "SDRF-04",
-        "unit_name": "SDRF Unit 04 — Alpha Squad",
-        "affected_population": 18400,
-        "status": "EN_ROUTE",
-        "dispatched_at": datetime.now(timezone.utc).isoformat(),
-        "notes": "Amphibious gear deployed. Main highway impassable; taking northern ridge detour.",
-    }
-]
+# Active dispatched missions stored in memory (resilient across requests, starts empty for demo)
+ACTIVE_DISPATCHES: List[Dict[str, Any]] = []
 
-# Road network connectivity and status definition
-ROAD_NETWORK: List[Dict[str, Any]] = [
-    {
-        "id": "RD-PUNE-01",
-        "name": "Mundhwa–Kharadi Riverside Road",
-        "taluka": "Haveli",
-        "settlement_id": "pune-haveli",
-        "status": "AT_RISK",
-        "severity": "HIGH",
-        "risk_reason": "Riverbank elevation matching projected backwater inundation level.",
-        "coordinates": [[18.528, 73.896], [18.536, 73.908], [18.545, 73.915]],
-    },
-    {
-        "id": "RD-PUNE-02",
-        "name": "Yerawada Access Causeway",
-        "taluka": "Haveli",
-        "settlement_id": "pune-haveli",
-        "status": "CONFIRMED_BLOCKED",
-        "severity": "CRITICAL",
-        "risk_reason": "Causeway deck submerged under 0.7m overflow; barrier placed.",
-        "coordinates": [[18.521, 73.875], [18.515, 73.882]],
-    },
-    {
-        "id": "RD-PUNE-03",
-        "name": "Sinhagad Lower Valley Route",
-        "taluka": "Haveli",
-        "settlement_id": "pune-haveli",
-        "status": "AT_RISK",
-        "severity": "HIGH",
-        "risk_reason": "Adjacent to dam spillway discharge channel.",
-        "coordinates": [[18.450, 73.762], [18.442, 73.775], [18.432, 73.785]],
-    },
-    {
-        "id": "RD-PUNE-04",
-        "name": "Paud–Mulshi Valley Road (SH-114)",
-        "taluka": "Mulshi",
-        "settlement_id": "pune-mulshi",
-        "status": "CONFIRMED_BLOCKED",
-        "severity": "CRITICAL",
-        "risk_reason": "Culvert washed out at km 4.2; roadway impassable for civilian vehicles.",
-        "coordinates": [[18.540, 73.510], [18.528, 73.520], [18.518, 73.528]],
-    },
-    {
-        "id": "RD-PUNE-05",
-        "name": "Tamhini Ghat Spur Road",
-        "taluka": "Mulshi",
-        "settlement_id": "pune-mulshi",
-        "status": "CONFIRMED_BLOCKED",
-        "severity": "CRITICAL",
-        "risk_reason": "Escarpment debris flow triggered by 95mm/24h orographic precipitation.",
-        "coordinates": [[18.493, 73.508], [18.488, 73.516]],
-    },
-    {
-        "id": "RD-PUNE-06",
-        "name": "Talegaon–Maval Connector",
-        "taluka": "Maval",
-        "settlement_id": "pune-maval",
-        "status": "MONITORING",
-        "severity": "MODERATE",
-        "risk_reason": "Intermittent waterlogging; operating below disruption threshold.",
-        "coordinates": [[18.710, 73.718], [18.700, 73.732], [18.690, 73.748]],
-    },
-    {
-        "id": "RD-PUNE-07",
-        "name": "Bhor–Kapurhol Link Road",
-        "taluka": "Bhor",
-        "settlement_id": "pune-bhor",
-        "status": "CONFIRMED_BLOCKED",
-        "severity": "CRITICAL",
-        "risk_reason": "Neera river bridge approach overflowed by 0.5m water.",
-        "coordinates": [[18.150, 73.850], [18.140, 73.860]],
-    },
-]
+# Road network connectivity and status definition (starts empty for clean demo)
+ROAD_NETWORK: List[Dict[str, Any]] = []
 
 # Baseline terrain and rainfall susceptibility profiles for Pune talukas
 TALUKA_PROFILES: Dict[str, Dict[str, float]] = {
@@ -145,8 +65,11 @@ def _get_settlements_path() -> str:
 
 
 def compute_live_settlements_priorities() -> Dict[str, Any]:
-    """Compute live multi-factor hazard scores, affected population, and road isolation status."""
+    """Compute live multi-factor hazard scores, affected population, and road isolation status from real data."""
     settlements_file = _get_settlements_path()
+    with open(settlements_file, "r", encoding="utf-8") as f:
+        raw_settlements_data = json.load(f).get("settlements", [])
+
     settlements = load_settlements_from_file(settlements_file)
 
     # Road blockages by settlement
@@ -154,6 +77,47 @@ def compute_live_settlements_priorities() -> Dict[str, Any]:
     for r in ROAD_NETWORK:
         sid = r.get("settlement_id", "")
         settlement_road_status.setdefault(sid, []).append(r)
+
+    # 1. Ingest actual ground reports from SQLite DB
+    db_path = os.path.normpath(os.path.join(Config.BASE_DIR, "data", "rainguard.db"))
+    reports: List[Any] = []
+    if os.path.exists(db_path):
+        try:
+            conn = sqlite3.connect(db_path)
+            c = conn.cursor()
+            c.execute("SELECT id, incident_type, location_name, latitude, longitude, estimated_population_1km, analysis_result FROM reports")
+            reports = c.fetchall()
+            conn.close()
+        except Exception as e:
+            print(f"Error querying rainguard.db: {e}")
+
+    # 2. Build spatial polygons for all 14 talukas
+    taluka_shapes: Dict[str, Any] = {}
+    for raw_s in raw_settlements_data:
+        sid = raw_s.get("settlement_id", "")
+        geom = raw_s.get("geometry")
+        if sid and geom:
+            try:
+                taluka_shapes[sid] = shape(geom)
+            except Exception:
+                pass
+
+    # 3. Spatially assign incidents to talukas
+    taluka_reports: Dict[str, List[Any]] = {s.settlement_id: [] for s in settlements}
+    for rep in reports:
+        rep_lat = rep[3]
+        rep_lng = rep[4]
+        if rep_lat is not None and rep_lng is not None:
+            pt = Point(rep_lng, rep_lat)
+            matched_sid = None
+            for sid, poly in taluka_shapes.items():
+                if poly.contains(pt):
+                    matched_sid = sid
+                    break
+            if not matched_sid and taluka_shapes:
+                matched_sid = min(taluka_shapes.keys(), key=lambda k: pt.distance(taluka_shapes[k]))
+            if matched_sid and matched_sid in taluka_reports:
+                taluka_reports[matched_sid].append(rep)
 
     processed_list = []
     total_district_pop = 0
@@ -164,25 +128,99 @@ def compute_live_settlements_priorities() -> Dict[str, Any]:
     for s in settlements:
         total_district_pop += int(s.population)
         taluka_name = s.taluka or s.name
-        profile = TALUKA_PROFILES.get(
-            taluka_name,
-            {"rainfall_1h": 12.0, "rainfall_24h": 35.0, "rainfall_72h": 70.0, "terrain": 0.50, "historical": 0.50},
+
+        # Real incident reports count & genuine localized WorldPop population
+        incs = taluka_reports.get(s.settlement_id, [])
+        inc_count = len(incs)
+        at_risk_pop = sum(r[5] or 0.0 for r in incs)
+        has_critical = any(
+            "collapse" in (r[1] or "").lower() or "flood" in (r[1] or "").lower() or "block" in (r[1] or "").lower()
+            for r in incs
         )
 
-        hazard_input = HazardInput(
-            location=Location(lat=s.latitude, lon=s.longitude),
-            rainfall_1h=profile["rainfall_1h"],
-            rainfall_24h=profile["rainfall_24h"],
-            rainfall_72h=profile["rainfall_72h"],
-            terrain_susceptibility=profile["terrain"],
-            historical_flood_proximity=profile["historical"],
-        )
-        hazard_out = calculate_hazard_score(hazard_input)
-        h_score = hazard_out.hazard_score
+        # Real SRTM NASA elevation and terrain slope
+        elev = 550
+        slope = 2.0
+        try:
+            e_val = elevation_processor.get_elevation_at_coord(s.latitude, s.longitude)
+            if e_val is not None:
+                elev = e_val
+            s_val = elevation_processor.calculate_slope(s.latitude, s.longitude)
+            if s_val is not None:
+                slope = s_val
+        except Exception:
+            pass
 
-        # Population impact: affected population is scaled by hazard score
-        affected_people = int(round(h_score * s.population))
-        affected_hh = int(round(affected_people / 4.5))
+        # Real nearest AWS rainfall sensor from live cache
+        nearest_station = None
+        min_d = float("inf")
+        live_data = None
+        try:
+            from backend.routes.rainfall import cache as r_cache
+            live_data = r_cache.get("data")
+        except Exception:
+            pass
+
+        station_pool = live_data if (live_data and isinstance(live_data, list)) else STATIONS
+        for st in station_pool:
+            st_lat = st.get("lat") or s.latitude
+            st_lng = st.get("lng") or s.longitude
+            d = math.hypot(st_lat - s.latitude, st_lng - s.longitude)
+            if d < min_d:
+                min_d = d
+                nearest_station = st
+
+        rain_1h = float(nearest_station.get("rain_1h", 0.0) or 0.0) if nearest_station else 0.0
+        rain_24h = float(nearest_station.get("rain_24h", 0.0) or 0.0) if nearest_station else 0.0
+
+        # Physical rainfall factor [0.0 - 1.0]:
+        # Requires genuine intense precipitation to reach high hazard
+        rain_factor = min(rain_1h / 40.0 + rain_24h / 120.0, 1.0)
+
+        # Topographical vulnerability from NASA SRTM
+        topo_vulnerability = 0.15
+        if elev < 580 and slope < 3.0:
+            topo_vulnerability = 0.35  # low-elevation alluvial pooling basin
+        elif slope > 6.0:
+            topo_vulnerability = 0.40  # steep mountain escarpment runoff
+        elif elev > 700:
+            topo_vulnerability = 0.25
+
+        # Incident report activity
+        inc_factor = min(inc_count * 0.10, 0.35)
+        if has_critical:
+            inc_factor += 0.08
+
+        # Hydro proximity (dams/confluence)
+        hydro_factor = 0.30 if taluka_name in ["Mulshi", "Pune City", "Haveli", "Bhor", "Maval"] else 0.10
+
+        # Deterministic composite hazard score:
+        # In the absence of actual precipitation (rain ~ 0), flood hazard CANNOT be HIGH.
+        # It remains strictly in LOW (<0.32) or at most mild MODERATE watch if multiple reports exist.
+        if rain_factor >= 0.20:
+            # Active meteorological storm event: rainfall drives the alert
+            raw_h = 0.50 * rain_factor + 0.25 * topo_vulnerability + 0.15 * inc_factor + 0.10 * hydro_factor
+        else:
+            # Dry / trace weather: reports are localized or uncorroborated, hazard remains low
+            base_dry = 0.08 + (0.15 * topo_vulnerability) + (0.10 * hydro_factor) + (0.06 * min(inc_count, 3))
+            raw_h = min(base_dry, 0.32)
+
+        h_score = round(max(0.08, min(0.95, raw_h)), 2)
+
+        # Categorical risk level:
+        # HIGH requires h_score >= 0.50 (which requires actual rainfall)
+        if h_score >= 0.70:
+            risk_level = "CRITICAL"
+        elif h_score >= 0.50:
+            risk_level = "HIGH"
+        elif h_score >= 0.30:
+            risk_level = "MODERATE"
+        else:
+            risk_level = "LOW"
+
+        # Genuine affected population (from real localized WorldPop impact buffers)
+        affected_people = int(round(at_risk_pop))
+        affected_hh = int(round(affected_people / 4.5)) if affected_people > 0 else 0
 
         # Check road isolation
         roads = settlement_road_status.get(s.settlement_id, [])
@@ -201,22 +239,27 @@ def compute_live_settlements_priorities() -> Dict[str, Any]:
             isolated_pop += affected_people
             isolated_settlements.append(s.name)
 
-        if h_score >= 0.30:  # Moderate, High, or Critical threshold
-            total_exposed_pop += affected_people
+        total_exposed_pop += affected_people
 
-        # Priority calculation: settlement impact + isolation penalty + high risk boost
-        base_priority = h_score * (math.log10(max(s.population, 10)) / 7.0)
+        # Priority calculation
+        base_priority = h_score * 0.6 + (0.35 if inc_count > 0 else 0.0)
         if is_isolated:
-            base_priority += 0.35  # High operational urgency for isolated humans
-        if hazard_out.risk_level == "CRITICAL":
-            base_priority += 0.20
-        elif hazard_out.risk_level == "HIGH":
-            base_priority += 0.10
+            base_priority += 0.25
+        if risk_level in ("HIGH", "CRITICAL"):
+            base_priority += 0.15
 
         priority_score = min(round(base_priority, 3), 1.0)
 
         # Check if already dispatched
         active_mission = next((m for m in ACTIVE_DISPATCHES if m.get("settlement_id") == s.settlement_id), None)
+
+        evidence_list = []
+        if inc_count > 0:
+            evidence_list.append(f"{inc_count} active ground incident report{'s' if inc_count > 1 else ''} filed")
+        if elev < 580 and slope < 3.0:
+            evidence_list.append(f"Low-elevation riverine basin ({elev}m, slope {slope:.1f}°)")
+        if hydro_factor >= 0.25:
+            evidence_list.append("Proximate to major dam spillway / river confluence")
 
         processed_list.append({
             "settlement_id": s.settlement_id,
@@ -225,27 +268,36 @@ def compute_live_settlements_priorities() -> Dict[str, Any]:
             "latitude": s.latitude,
             "longitude": s.longitude,
             "population": int(s.population),
+            "total_population": int(s.population),
             "affected_population": affected_people,
             "affected_households": affected_hh,
-            "hazard_score": round(h_score, 3),
-            "risk_level": hazard_out.risk_level,
+            "incident_count": inc_count,
+            "elevation_m": elev,
+            "slope_deg": round(slope, 1),
+            "hazard_score": round(h_score, 2),
+            "risk_level": risk_level,
             "priority_score": priority_score,
             "is_isolated": is_isolated,
             "isolation_reason": isolation_reason,
-            "evidence": hazard_out.evidence,
-            "component_scores": {k: round(v, 3) for k, v in hazard_out.component_scores.items()},
+            "evidence": evidence_list,
+            "component_scores": {
+                "incident_score": round(inc_factor, 3),
+                "terrain_susceptibility": round(topo_vulnerability, 3),
+                "hydro_proximity": round(hydro_factor, 3),
+                "rainfall_1h": round(rain_factor, 3),
+            },
             "rainfall_summary": {
-                "rainfall_1h_mm": profile["rainfall_1h"],
-                "rainfall_24h_mm": profile["rainfall_24h"],
-                "rainfall_72h_mm": profile["rainfall_72h"],
+                "rainfall_1h_mm": rain_1h,
+                "rainfall_24h_mm": rain_24h,
+                "rainfall_72h_mm": 0.0,
             },
             "roads_count": len(roads),
             "blocked_roads_count": len(blocked_roads),
             "active_mission": active_mission,
         })
 
-    # Sort descending by priority_score
-    processed_list.sort(key=lambda x: (-x["priority_score"], -x["affected_population"]))
+    # Sort descending by priority_score, then incident count
+    processed_list.sort(key=lambda x: (-x["priority_score"], -x["incident_count"], -x["hazard_score"]))
     for idx, item in enumerate(processed_list, start=1):
         item["rank"] = idx
 

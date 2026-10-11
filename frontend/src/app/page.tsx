@@ -534,41 +534,6 @@ export default function MainPage() {
             {/* TAB 2: News Feed */}
             {activeTab === 'simulated' && (
               <div className="flex-1 flex flex-col overflow-hidden space-y-2">
-                {/* Operational Visibility Metrics Header */}
-                {operationalMetrics && (
-                  <div className="bg-slate-900 text-white p-2.5 rounded-lg text-[11px] shrink-0 border border-slate-800 shadow-xs">
-                    <div className="flex items-center justify-between mb-1.5 font-bold tracking-wide text-slate-300">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        LIVE INGESTION & GEOLOCATION PIPELINE
-                      </span>
-                      <span className="text-[10px] text-slate-400">DB-Backed</span>
-                    </div>
-                    <div className="grid grid-cols-4 gap-1.5 text-center text-[10px]">
-                      <div className="bg-slate-800/80 p-1 rounded">
-                        <div className="text-slate-400">Total News</div>
-                        <div className="font-bold text-white text-[12px]">{operationalMetrics.total_persisted_articles || newsFeed.length}</div>
-                      </div>
-                      <div className="bg-emerald-950/60 border border-emerald-800/40 p-1 rounded">
-                        <div className="text-emerald-400">Verified</div>
-                        <div className="font-bold text-emerald-300 text-[12px]">{operationalMetrics.verified_locations || 0}</div>
-                      </div>
-                      <div className="bg-amber-950/60 border border-amber-800/40 p-1 rounded">
-                        <div className="text-amber-400">Approx</div>
-                        <div className="font-bold text-amber-300 text-[12px]">{operationalMetrics.approximate_locations || 0}</div>
-                      </div>
-                      <div className="bg-slate-800/80 p-1 rounded">
-                        <div className="text-slate-400">Unlocated</div>
-                        <div className="font-bold text-slate-300 text-[12px]">{operationalMetrics.unresolved_locations || 0}</div>
-                      </div>
-                    </div>
-                    <div className="mt-1.5 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[9.5px] text-slate-400">
-                      <span>LLM Requests: <strong className="text-slate-200">{operationalMetrics.llm_requests_made || 0}</strong></span>
-                      <span>Geo Cache Hits: <strong className="text-slate-200">{operationalMetrics.geocoding_cache_hits || 0}</strong></span>
-                    </div>
-                  </div>
-                )}
-
                 {/* News Items List */}
                 <div className="flex-1 overflow-y-auto space-y-2.5 pr-1" style={{ scrollbarWidth: 'thin' }}>
                   {newsFeed.map((item) => {
@@ -602,9 +567,6 @@ export default function MainPage() {
                           <div className="flex items-center gap-1.5">
                             <span className="text-[10px] font-extrabold text-slate-700 uppercase tracking-wide bg-slate-100 px-1.5 py-0.5 rounded">
                               {item.source || 'News'}
-                            </span>
-                            <span className={`text-[9.5px] font-bold border px-1.5 py-0.5 rounded uppercase ${severityBadgeClass}`}>
-                              {item.severity || 'MEDIUM'}
                             </span>
                           </div>
 
@@ -661,28 +623,6 @@ export default function MainPage() {
                           {item.description}
                         </p>
 
-                        {/* Population Estimation */}
-                        <div className="bg-slate-50 rounded-md border border-slate-100 px-2 py-1.5 flex items-center gap-2 mb-2">
-                          <span className="text-[14px]">👥</span>
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Estimated population nearby</span>
-                            {item.estimated_population_1km !== null && item.estimated_population_1km !== undefined ? (
-                              <span className="text-[12px] font-semibold text-slate-800">
-                                Within {item.impact_radius_km || 1} km: {Math.round(item.estimated_population_1km).toLocaleString()} people
-                              </span>
-                            ) : (
-                              <span className="text-[12px] font-medium text-slate-500 italic">Population data unavailable</span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Lives at Risk Box */}
-                        {item.analysis_result && item.analysis_result.estimated_lives_at_risk && (
-                          <div className="mb-2 inline-flex items-center gap-1.5 bg-red-50 border border-red-200 text-red-700 px-2 py-1 rounded">
-                            <span className="text-[10px] font-bold tracking-wide uppercase">Lives at Risk:</span>
-                            <span className="text-[11px] font-extrabold">{item.analysis_result.estimated_lives_at_risk}</span>
-                          </div>
-                        )}
 
                         {/* Card Footer Actions */}
                         <div className="flex items-center justify-between text-[10px] border-t border-slate-100 pt-2 mt-1">
