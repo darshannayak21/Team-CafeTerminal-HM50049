@@ -8,17 +8,16 @@ import { MainMapContainer } from '@/components/map/MainMapContainer';
 import { RouteOption, GroundReport, NewsReport } from '@/types/prototype';
 
 const TEAMS_DATA: { id: string; name: string; base: [number, number]; type: string; color: string }[] = [
-  { id: 'medical-kothrud', name: 'Medical-Kothrud Team', base: [18.5033, 73.8066], type: 'Medical', color: '#dc2626' },
+  { id: 'medical-kothrud', name: 'Kothrud Response Team', base: [18.5033, 73.8066], type: 'Response', color: '#dc2626' },
+  { id: 'pimpri-rescue', name: 'Pimpri Response Team', base: [18.6519, 73.7619], type: 'Rescue', color: '#8b5cf6' },
   { id: 'ndrf-alpha', name: 'NDRF Alpha (Shivajinagar)', base: [18.5314, 73.8446], type: 'NDRF', color: '#ea580c' },
   { id: 'police-swargate', name: 'Swargate Police Reserve', base: [18.4991, 73.8586], type: 'Police', color: '#2563eb' },
   { id: 'fire-hadapsar', name: 'Hadapsar Fire Brigade', base: [18.5089, 73.9259], type: 'Fire', color: '#b91c1c' },
   { id: 'medical-wakad', name: 'Wakad Rapid Medical', base: [18.5987, 73.7688], type: 'Medical', color: '#be123c' },
   { id: 'pmc-disaster', name: 'PMC Disaster Response', base: [18.5204, 73.8567], type: 'PMC', color: '#047857' },
   { id: 'ndrf-bravo', name: 'NDRF Bravo (Katraj)', base: [18.4529, 73.8596], type: 'NDRF', color: '#c2410c' },
-  { id: 'medical-pimpri', name: 'PCMC Medical Unit', base: [18.6298, 73.7997], type: 'Medical', color: '#9f1239' },
   { id: 'police-viman', name: 'Viman Nagar Police', base: [18.5679, 73.9143], type: 'Police', color: '#1d4ed8' },
   { id: 'fire-baner', name: 'Baner Fire Station', base: [18.5590, 73.7868], type: 'Fire', color: '#991b1b' },
-  { id: 'pimpri-rescue', name: 'PCCOE Rescue Team', base: [18.6519, 73.7619], type: 'NDRF', color: '#8b5cf6' },
 ];
 
 function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -443,7 +442,48 @@ export default function MainPage() {
                               safety_status: safetyStatus,
                             };
 
-                            localStorage.setItem('sahayak_active_mission', JSON.stringify(missionData));
+                            // Sync assignment with backend database for department head dashboard
+                            try {
+                              let unitId = 'KOTHRUD-VAN-01';
+                              let deptName = 'Kothrud Response';
+                              if (selectedTeam.name.toLowerCase().includes('pimpri') || selectedTeam.id.toLowerCase().includes('pimpri')) {
+                                unitId = 'PIMPRI-RESCUE-01';
+                                deptName = 'Pimpri Response';
+                              } else {
+                                unitId = 'KOTHRUD-VAN-01';
+                                deptName = 'Kothrud Response';
+                              }
+
+                              await fetch('http://localhost:5000/api/dispatch/assign', {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'X-User-Email': 'admin@gmail.com',
+                                },
+                                body: JSON.stringify({
+                                  incident_id: String(report.id),
+                                  incident_title: report.incident_type || 'Ground Incident',
+                                  incident_description: report.description || (report as any).text || '',
+                                  image_url: (report as any).image_url || (report as any).image_path || ((report as any).image_filename ? `/api/uploads/${(report as any).image_filename}` : '') || '',
+                                  incident_lat: report.latitude,
+                                  incident_lon: report.longitude,
+                                  incident_location: report.location_name || `${report.latitude.toFixed(4)}, ${report.longitude.toFixed(4)}`,
+                                  severity: (report as any).analysis_result?.verified_severity || 'HIGH',
+                                  affected_population: report.estimated_population_1km || 0,
+                                  unit_id: unitId,
+                                  department: deptName,
+                                  status: 'assigned_to_head',
+                                  dispatched_by: 'admin@gmail.com',
+                                  notes: safetyBrief.slice(0, 2).join('; '),
+                                  route_waypoints: waypoints,
+                                  distance_km: Number(distanceKm) || null,
+                                  duration_minutes: durationMinutes,
+                                  safety_status: safetyStatus,
+                                }),
+                              });
+                            } catch (e) {
+                              console.warn('[Dispatch] Error syncing assignment:', e);
+                            }
 
                             const newRoute = {
                               id: 'dispatch-' + report.id + '-' + Date.now(),
@@ -465,7 +505,7 @@ export default function MainPage() {
                             };
 
                             setActiveRoutes(prev => [...prev, newRoute]);
-                            alert(`Mission Dispatched to ${selectedTeam.name}!\n\n${safetyBrief.slice(0, 3).join('\n')}`);
+                            alert(`Task Assigned to ${selectedTeam.name} Head!\n\nThe Department Head will now review and deploy a unit to the Field Responder.`);
                           }}
                           className="text-[10px] font-bold px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                         >

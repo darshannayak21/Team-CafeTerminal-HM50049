@@ -24,16 +24,23 @@ export default function LoginPage() {
         if (
           !(email === 'admin@gmail.com' && password === 'admin123') &&
           !(email === 'medical@gmail.com' && password === 'medical123') &&
-          !(email === 'pimpri@gmail.com' && password === 'pimpri123')
+          !(email === 'pimpri@gmail.com' && password === 'pimpri123') &&
+          !(email === 'respondhead@gmail.com' && password === 'head123') &&
+          !(email === 'head@gmail.com' && password === 'head123')
         ) {
-          throw new Error("Invalid credentials. Try admin@gmail.com, medical@gmail.com, or pimpri@gmail.com");
+          throw new Error("Invalid credentials.");
         }
       }
 
       if (email === 'medical@gmail.com' || email === 'pimpri@gmail.com') {
         localStorage.setItem('sahayak_team_email', email);
         router.push('/responder');
+      } else if (email === 'respondhead@gmail.com' || email === 'head@gmail.com') {
+        localStorage.setItem('sahayak_manager_email', email);
+        router.push('/head');
       } else {
+        // admin@gmail.com and all central operators go directly to the Main Assigner Page
+        localStorage.setItem('sahayak_admin_email', email);
         router.push('/');
       }
     } catch (err: any) {
@@ -117,12 +124,24 @@ export default function LoginPage() {
           <div className="text-[12px] text-ink-muted-48 tracking-[-0.12px] text-center space-y-2">
             <p className="font-semibold text-ink-muted-80 uppercase mb-3">Demo Accounts</p>
             <div className="flex justify-between items-center bg-surface-pearl px-4 py-2 rounded-[8px] border border-hairline">
-              <span>Admin Dispatcher</span>
+              <span>Admin Main Assigner</span>
               <span className="font-semibold text-ink">admin@gmail.com</span>
             </div>
             <div className="flex justify-between items-center bg-surface-pearl px-4 py-2 rounded-[8px] border border-hairline">
-              <span>Medical Responder</span>
+              <span>Head: Kothrud Response</span>
+              <span className="font-semibold text-ink">respondhead@gmail.com</span>
+            </div>
+            <div className="flex justify-between items-center bg-surface-pearl px-4 py-2 rounded-[8px] border border-hairline">
+              <span>Head: Pimpri Response</span>
+              <span className="font-semibold text-ink">head@gmail.com</span>
+            </div>
+            <div className="flex justify-between items-center bg-surface-pearl px-4 py-2 rounded-[8px] border border-hairline">
+              <span>Responder: Kothrud Medical</span>
               <span className="font-semibold text-ink">medical@gmail.com</span>
+            </div>
+            <div className="flex justify-between items-center bg-surface-pearl px-4 py-2 rounded-[8px] border border-hairline">
+              <span>Responder: Pimpri Response</span>
+              <span className="font-semibold text-ink">pimpri@gmail.com</span>
             </div>
           </div>
         </div>

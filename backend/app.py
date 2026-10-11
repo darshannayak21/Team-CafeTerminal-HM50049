@@ -13,6 +13,7 @@ from backend.routes.ai import ai_bp
 from backend.routes.replay import replay_bp
 from backend.routes.routing import routing_bp
 from backend.routes.whatsapp import whatsapp_bp
+from backend.routes.dispatch import dispatch_bp
 from backend.services.db import init_db
 
 
@@ -49,6 +50,7 @@ def create_app(config_class: type[Config] | None = None) -> Flask:
     app.register_blueprint(replay_bp)
     app.register_blueprint(routing_bp)
     app.register_blueprint(whatsapp_bp)
+    app.register_blueprint(dispatch_bp)
 
     # Start background news ingestion worker if not in test mode
     # Disabled for demo purposes to preserve hardcoded DB

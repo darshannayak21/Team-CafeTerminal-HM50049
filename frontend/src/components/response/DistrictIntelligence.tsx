@@ -50,7 +50,7 @@ export const DistrictIntelligence: React.FC<DistrictIntelligenceProps> = ({
       let originLon = 73.8066;
       
       if (selectedTeam === 'pimpri-rescue') {
-        originLat = 18.6519; // PCCOE base
+        originLat = 18.6519; // Pimpri base
         originLon = 73.7619;
       }
       
@@ -127,8 +127,8 @@ export const DistrictIntelligence: React.FC<DistrictIntelligenceProps> = ({
               onChange={(e) => setSelectedTeam(e.target.value)}
             >
               <option value="" disabled>Select Response Team</option>
-              <option value="medical-kothrud">Medical-Kothrud Team</option>
-              <option value="pimpri-rescue">PCCOE Rescue Team</option>
+              <option value="medical-kothrud">Kothrud Response Team</option>
+              <option value="pimpri-rescue">Pimpri Response Team</option>
               <option value="ndrf-alpha">NDRF Alpha Unit</option>
               <option value="local-police">Local Police Reserve</option>
             </select>

@@ -13,20 +13,16 @@ export default function ResponderPage() {
   const [activeMission, setActiveMission] = useState<any>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [feedTab, setFeedTab] = useState<'ground' | 'news'>('ground');
-  const [teamName, setTeamName] = useState('Medical-Kothrud');
+  const [teamName, setTeamName] = useState('Kothrud Response Team');
   const [groundReports, setGroundReports] = useState<any[]>([]);
   const [newsFeed, setNewsFeed] = useState<any[]>([]);
+  const [modalImage, setModalImage] = useState<string | null>(null);
 
   useEffect(() => {
     try {
-      const mission = localStorage.getItem('sahayak_active_mission');
       const email = localStorage.getItem('sahayak_team_email');
-      if (email === 'pimpri@gmail.com') setTeamName('PCCOE Rescue Team');
-      else setTeamName('Medical-Kothrud');
-      
-      if (mission) {
-        setActiveMission(JSON.parse(mission));
-      }
+      if (email === 'pimpri@gmail.com') setTeamName('Pimpri Response Team');
+      else setTeamName('Kothrud Response Team');
     } catch(e) {}
     
     // Fetch feed data
@@ -53,13 +49,66 @@ export default function ResponderPage() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
+  // Poll for assignments
+  useEffect(() => {
+    const email = localStorage.getItem('sahayak_team_email') || '';
+    if (!email) return;
+
+    const fetchMission = async () => {
+      try {
+        const res = await fetch(`http://localhost:5000/api/dispatch/responder-mission?email=${email}`);
+        const data = await res.json();
+        if (data.success && data.mission) {
+          setActiveMission(data.mission);
+          // Set status locally if the DB says something else (e.g. dispatched -> pending on UI)
+          if (data.mission.status === 'dispatched' || data.mission.status === 'assigned') {
+            setStatus('pending');
+          } else if (data.mission.status === 'en_route') {
+            setStatus('en_route');
+          } else if (data.mission.status === 'on_scene') {
+            setStatus('on_scene');
+          }
+        } else if (data.success && !data.mission) {
+          setActiveMission(null);
+          setStatus('pending');
+        }
+      } catch (e) {}
+    };
+
+    fetchMission();
+    const interval = setInterval(fetchMission, 10000); // 10s polling
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleUpdateStatus = async (newStatus: 'pending'|'en_route'|'on_scene'|'resolved') => {
+    setStatus(newStatus);
+    if (!activeMission?.id) return;
+    
+    // Check if it's a dispatch_assignments ID (usually contains '-')
+    if (String(activeMission.id).includes('-')) {
+      try {
+        await fetch(`http://localhost:5000/api/dispatch/assignments/${activeMission.id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus })
+        });
+      } catch (e) {}
+    }
+
+    if (newStatus === 'resolved') {
+      localStorage.removeItem('sahayak_active_mission');
+      setActiveMission(null);
+      setStatus('pending');
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen w-full bg-canvas overflow-hidden font-sans">
       {/* HEADER */}
       <header className="h-[52px] shrink-0 border-b border-hairline bg-canvas-parchment flex items-center justify-between px-6 z-20">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-[12px]">
-            {teamName === 'PCCOE Rescue Team' ? 'PR' : 'MK'}
+            {teamName === 'Pimpri Response Team' ? 'PR' : 'KM'}
           </div>
           <div>
             <h1 className="text-[17px] font-semibold text-ink tracking-[-0.374px] leading-tight">{teamName}</h1>
@@ -186,31 +235,86 @@ export default function ResponderPage() {
 
             </div>
           ) : isLoaded && activeMission ? (
-            <div className="p-8 flex flex-col h-full">
-              <div className="mb-8">
-                <span className="inline-block px-3 py-1 bg-red-100 text-[#ff3b30] text-[12px] font-semibold tracking-[-0.12px] rounded-pill mb-4">
-                  CRITICAL DISPATCH
-                </span>
-                <h2 className="text-[34px] font-semibold tracking-[-0.374px] text-ink leading-[1.1] mb-2">
+            <div className="p-6 lg:p-8 flex flex-col h-full overflow-y-auto">
+              <div className="mb-6">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <span className="inline-block px-3 py-1 bg-red-100 text-[#ff3b30] text-[12px] font-semibold tracking-[-0.12px] rounded-pill">
+                    CRITICAL DISPATCH
+                  </span>
+                  {activeMission.population && (
+                    <span className="text-[11px] font-bold uppercase bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full border border-blue-200">
+                      👥 {typeof activeMission.population === 'number' ? activeMission.population.toLocaleString() : activeMission.population} Lives at Risk
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-[28px] font-bold tracking-[-0.374px] text-ink leading-[1.15] mb-2">
                   {activeMission.title}
                 </h2>
-                <p className="text-[17px] text-ink-muted-80 tracking-[-0.374px] leading-[1.47]">
+                <p className="text-[15px] text-ink-muted-80 tracking-[-0.374px] leading-relaxed">
                   {activeMission.description}
                 </p>
               </div>
 
-              <div className="space-y-4 mb-8">
-                {activeMission.population && (
-                  <div className="bg-canvas border border-hairline p-5 rounded-[18px]">
-                    <p className="text-[14px] font-semibold tracking-[-0.224px] text-ink-muted-80 mb-1">Affected Population</p>
-                    <p className="text-[28px] font-semibold tracking-[0.196px] text-ink">{typeof activeMission.population === 'number' ? activeMission.population.toLocaleString() : activeMission.population}</p>
+              {/* Citizen Incident Description */}
+              {activeMission.incident_description && (
+                <div className="bg-amber-50/90 border border-amber-200/90 rounded-[16px] p-3.5 mb-4 shadow-2xs">
+                  <p className="text-[10.5px] font-bold uppercase tracking-wider text-amber-900 mb-1 flex items-center gap-1.5">
+                    <span>📝</span> Citizen Ground Report Description
+                  </p>
+                  <p className="text-[14px] font-medium text-amber-950 italic leading-relaxed">
+                    "{activeMission.incident_description}"
+                  </p>
+                </div>
+              )}
+
+              {/* Citizen Photo Evidence */}
+              {activeMission.image_url && (
+                <div className="mb-4">
+                  <p className="text-[10.5px] font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1.5">
+                    <span>📸</span> Citizen Ground Photo Evidence
+                  </p>
+                  <div 
+                    onClick={() => {
+                      const fullUrl = activeMission.image_url.startsWith('http') ? activeMission.image_url : `http://localhost:5000${activeMission.image_url.startsWith('/') ? '' : '/'}${activeMission.image_url}`;
+                      setModalImage(fullUrl);
+                    }}
+                    className="relative group rounded-[16px] overflow-hidden border border-slate-200 bg-slate-100 max-h-[190px] cursor-pointer shadow-xs"
+                  >
+                    <img 
+                      src={activeMission.image_url.startsWith('http') ? activeMission.image_url : `http://localhost:5000${activeMission.image_url.startsWith('/') ? '' : '/'}${activeMission.image_url}`} 
+                      alt="Citizen Ground Evidence" 
+                      className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-200"
+                    />
+                    <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[12px] font-bold backdrop-blur-2xs">
+                      🔍 Tap to Enlarge Photo
+                    </div>
                   </div>
-                )}
-                
+                </div>
+              )}
+
+              {/* Deployed Vehicle Specs */}
+              {activeMission.unit_name && (
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-[16px] mb-4 shadow-2xs">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10.5px] font-bold uppercase tracking-wider text-blue-700">Assigned Fleet Unit</span>
+                    <span className="text-[10.5px] font-black uppercase text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+                      Cap: {activeMission.capacity || 4} Evacuees
+                    </span>
+                  </div>
+                  <div className="text-[15px] font-black text-slate-900 leading-tight">
+                    {activeMission.unit_name}
+                  </div>
+                  <div className="text-[11.5px] text-slate-600 mt-0.5">
+                    Vehicle: {activeMission.vehicle_type || 'Emergency Unit'}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4 mb-6">
                 {activeMission.brief && (
-                  <div className="bg-canvas-parchment p-5 rounded-[18px]">
-                    <p className="text-[14px] font-semibold tracking-[-0.224px] text-ink mb-3">Tactical Brief</p>
-                    <ul className="text-[17px] text-ink tracking-[-0.374px] leading-[1.47] space-y-3 list-disc pl-5">
+                  <div className="bg-canvas-parchment p-4 rounded-[16px]">
+                    <p className="text-[12px] font-bold uppercase tracking-wider text-ink mb-2">Tactical Mission Brief</p>
+                    <ul className="text-[14px] text-ink tracking-[-0.374px] leading-relaxed space-y-2 list-disc pl-5">
                       {activeMission.brief.map((point: string, i: number) => (
                         <li key={i}>{point}</li>
                       ))}
@@ -222,7 +326,7 @@ export default function ResponderPage() {
               {/* STATUS BUTTONS */}
               <div className="space-y-3 mt-auto">
                 <button
-                  onClick={() => setStatus('en_route')}
+                  onClick={() => handleUpdateStatus('en_route')}
                   disabled={status !== 'pending'}
                   className={`w-full py-3.5 rounded-pill font-normal text-[17px] tracking-[-0.374px] transition-transform flex items-center justify-center gap-2 ${
                     status === 'en_route' 
@@ -236,7 +340,7 @@ export default function ResponderPage() {
                 </button>
                 
                 <button
-                  onClick={() => setStatus('on_scene')}
+                  onClick={() => handleUpdateStatus('on_scene')}
                   disabled={status !== 'en_route'}
                   className={`w-full py-3.5 rounded-pill font-normal text-[17px] tracking-[-0.374px] transition-transform flex items-center justify-center gap-2 ${
                     status === 'on_scene' 
@@ -250,12 +354,7 @@ export default function ResponderPage() {
                 </button>
 
                 <button
-                  onClick={() => {
-                    setStatus('resolved');
-                    localStorage.removeItem('sahayak_active_mission');
-                    setActiveMission(null);
-                    setStatus('pending');
-                  }}
+                  onClick={() => handleUpdateStatus('resolved')}
                   disabled={status !== 'on_scene'}
                   className={`w-full py-3.5 rounded-pill font-normal text-[17px] tracking-[-0.374px] transition-transform flex items-center justify-center gap-2 ${
                     status === 'resolved' 
